@@ -86,7 +86,7 @@ Typical Profile:
 
 **Scenario 5 — Fraud Attempt (Blocked)**
 
-> Vikram tries to claim during a rainfall event. His GPS shows him 8 km outside the zone with zero deliveries in the last 30 minutes. Fraud score: 0.25 (below 0.75 threshold). Admin console shows: ❌ GPS outside zone ·  Not active ·  No duplicate ·  App logged in. Payout blocked.
+> Vikram tries to claim during a rainfall event. His GPS shows him 8 km outside the zone with zero deliveries in the last 30 minutes. Fraud score: 0.25 (below 0.75 threshold). Admin console shows:  GPS outside zone ·  Not active ·  No duplicate ·  App logged in. Payout blocked.
 
 ---
 
