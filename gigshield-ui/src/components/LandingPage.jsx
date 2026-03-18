@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Shield, Smartphone, BarChart3, Zap, ChevronRight, ArrowRight, CloudRain, Wind, Thermometer, AlertTriangle, Star, Users, Clock, IndianRupee, TrendingUp, CheckCircle2 } from 'lucide-react'
+import { Shield, Smartphone, BarChart3, Zap, ChevronRight, ArrowRight, CloudRain, Wind, Thermometer, AlertTriangle, Star, Users, Clock, IndianRupee, TrendingUp, CheckCircle2, Moon, Sun } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
 
 const stats = [
   { label: 'Avg Payout Time', value: '<60s', icon: Clock },
@@ -25,6 +26,7 @@ const howItWorks = [
 export default function LandingPage({ onNavigate }) {
   const [scrollY, setScrollY] = useState(0)
   const [activeFeature, setActiveFeature] = useState(0)
+  const { isDark, toggleTheme } = useTheme()
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY)
@@ -67,6 +69,9 @@ export default function LandingPage({ onNavigate }) {
             <button onClick={() => onNavigate('admin')} className="text-sm text-text-secondary hover:text-text-primary transition-colors">Admin Portal</button>
           </div>
           <div className="flex items-center gap-3">
+            <button onClick={toggleTheme} className="w-9 h-9 rounded-xl bg-dark-card border border-dark-border flex items-center justify-center hover:border-primary/30 transition-all" title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+              {isDark ? <Sun size={16} className="text-warning" /> : <Moon size={16} className="text-text-secondary" />}
+            </button>
             <button onClick={() => onNavigate('admin')} className="hidden md:block px-4 py-2 text-sm font-medium text-primary border border-primary/30 rounded-xl hover:bg-primary/10 transition-all">
               Insurer Login
             </button>
