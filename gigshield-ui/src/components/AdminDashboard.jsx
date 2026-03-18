@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Shield, ArrowLeft, Map, Activity, BarChart3, AlertTriangle, Sliders, Award, Users, Clock, TrendingUp, TrendingDown, IndianRupee, CloudRain, Wind, Thermometer, CheckCircle2, XCircle, MapPin, Zap, ChevronRight, ChevronDown, Bell, Search, Filter, RefreshCw, Eye, Download, Calendar, Globe, Layers, Target, PieChart, Flame, ShieldAlert, Fingerprint, Network, Radio, Wifi } from 'lucide-react'
+import { Shield, ArrowLeft, Map, Activity, BarChart3, AlertTriangle, Sliders, Award, Users, Clock, TrendingUp, TrendingDown, IndianRupee, CloudRain, Wind, Thermometer, CheckCircle2, XCircle, MapPin, Zap, ChevronRight, ChevronDown, Bell, Search, Filter, RefreshCw, Eye, Download, Calendar, Globe, Layers, Target, PieChart, Flame, ShieldAlert, Fingerprint, Network, Radio, Wifi, Moon, Sun } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
 import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RPieChart, Pie, Cell, RadialBarChart, RadialBar, Legend } from 'recharts'
 
 const sidebarItems = [
@@ -73,6 +74,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function AdminDashboard({ onBack }) {
   const [activeTab, setActiveTab] = useState('overview')
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { isDark, toggleTheme } = useTheme()
 
   return (
     <div className="min-h-screen bg-dark flex">
@@ -120,6 +122,9 @@ export default function AdminDashboard({ onBack }) {
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
               Live Monitoring
             </div>
+            <button onClick={toggleTheme} className="w-8 h-8 rounded-lg bg-dark-surface border border-dark-border flex items-center justify-center hover:border-primary/30 transition-all" title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+              {isDark ? <Sun size={14} className="text-warning" /> : <Moon size={14} className="text-text-secondary" />}
+            </button>
             <div className="relative">
               <Bell size={18} className="text-text-secondary" />
               <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-danger" />
