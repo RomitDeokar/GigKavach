@@ -1,4 +1,4 @@
-# GigShield
+# 🛡️ GigShield
 
 **AI-Powered Parametric Income Protection for India's Q-Commerce Delivery Partners**
 
