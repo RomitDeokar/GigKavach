@@ -1195,38 +1195,39 @@ Zero-friction onboarding via WhatsApp link → Chrome → "Add to Home Screen." 
 | Feature | Phase |
 |---|---|
 | OTP registration + zone auto-detection | 2 |
-| AI-adjusted weekly premium (transparent) | 2 |
-| Premium Price Forecast — 7-day forward | 2 |
-| Policy purchase with UPI mock | 2 |
-| Policy Certificate PDF | 2 |
-| Zone Status Widget | 2 |
-| Pre-disruption push alert | 2 |
-| Auto claim + fraud validation | 2 |
+| AI-adjusted weekly premium (shown transparently) | 2 |
+| Premium Price Forecast — 7-day forward pricing | 2 |
+| Policy purchase with UPI / Razorpay mock | 2 |
+| Policy Certificate PDF (downloadable) | 2 |
+| Zone Status Widget (🟢🟡🔴) | 2 |
+| Pre-disruption weather push alert | 2 |
+| Auto claim creation + fraud validation | 2 |
 | Claim Statement / EOB PDF | 2 |
-| GigBot (Hindi + English) | 2 |
-| Protection Timeline | 3 |
-| Savings Dashboard (ROI) | 3 |
-| Lifetime Protection Graph | 3 |
-| GigPoints + tier progress | 3 |
-| Zone Disruption History | 3 |
+| GigBot chatbot (Hindi + English, policy-aware) | 2 |
+| Protection Timeline feed | 3 |
+| Savings Dashboard (net savings + ROI %) | 3 |
+| Lifetime Protection Graph (monthly bar chart + ROI) | 3 |
+| GigPoints balance + tier progress bar | 3 |
+| Points activity history | 3 |
+| Zone Disruption History (30 days) | 3 |
 | Coverage Gap Detector | 3 |
-| Smart expiry reminders | 3 |
-| Auto-renew toggle | 3 |
-| Referral system | 3 |
-| Collective Pool | 3 |
+| Smart policy expiry reminders (4-touchpoint schedule) | 3 |
+| Auto-renew toggle + UPI mandate simulation | 3 |
+| Referral system + zone group enrollment | 3 |
+| Collective Protection Pool (opt-in, zone community fund) | 3 |
 
 ### Admin Dashboard
 
 | Feature | Phase |
 |---|---|
 | Zone risk heatmap (Leaflet + OSM) | 2 |
-| Live disruption + claims feed | 2 |
+| Real-time disruption + claims live feed | 2 |
 | Fraud console (per-check explainability) | 2 |
 | Anti-spoofing dashboard (ring detection, velocity analysis) | 2 |
-| Loss ratio analytics | 3 |
+| Loss ratio analytics + payout trends | 3 |
 | 7-Day Zone Risk Predictor | 3 |
-| Risk Simulator | 3 |
-| Loyalty monitor | 3 |
+| GigPoints / loyalty tier monitor | 3 |
+| Zone-wise payout breakdown | 3 |
 
 ---
 
