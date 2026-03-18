@@ -768,8 +768,8 @@ Operates under IRDAI Regulatory Sandbox Guidelines, 2019. GigShield is the techn
 | Pragalbh Rai | Backend + DevOps |
 | Manmohan Singh | Backend + DevOps |
 
-**University:** SRM University
-**Track:** Q-Commerce / Instant Delivery (Zepto / Blinkit)
+**University:** SRM University <br>
+**Persona Track:** Q-Commerce / Instant Delivery (Zepto / Blinkit)
 
 ---
 
