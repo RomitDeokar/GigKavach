@@ -746,12 +746,36 @@ Achieved through 5-layer adversarial scoring + network graph ring detection + ho
 ### Unit Economics (1,000 workers, Bangalore)
 
 ```
-Weekly Premium Pool:  ₹99,000
-Monsoon Claims:       ₹2,25,000/week → Reinsurer absorbs 70% above 1.5x
-GigShield net:        ₹44,550/week (loss ratio 0.45 net of reinsurance)
-Off-Season Claims:    ₹16,000/week (loss ratio 0.16)
-Annual/Worker:        ₹5,148 premium collected, ~₹1,800 claims → ~65% gross margin
+Weekly Premium Pool:
+  1,000 workers × ₹99 avg = ₹99,000/week
+
+Monsoon Season (Jun–Sep):
+  ~3 events/week × 150 workers affected × ₹500 avg payout
+  = ₹2,25,000/week gross claims
+  Loss Ratio = 2.27  →  Reinsurer absorbs 70% above 1.5× threshold
+  GigShield net payout:  ₹44,550/week  →  Net Loss Ratio: 0.45
+
+Off-Season (Oct–May):
+  ~0.8 events/week × 40 workers affected × ₹500 avg payout
+  = ₹16,000/week in payouts
+  Loss Ratio = 0.16  →  Highly profitable
+
+Annual Per-Worker Economics:
+  Premium collected:  ₹99 × 52 weeks = ₹5,148
+  Average claims:     ~₹1,800/year
+  Gross margin:       ~65% off-season / reinsured in-season
 ```
+
+### Sustainability Strategy
+
+- **Dynamic surge pricing** during monsoon season (+40% premium uplift)
+- **Reinsurance layer** covers loss ratios above 1.5x
+- **Zone-level risk differentiation** prevents adverse selection — risky zones priced higher
+- **GigPoints loyalty** reduces churn — Champion-tier workers target 85%+ renewal rate
+- **Referral + group enrollment** grows the risk pool organically within zones
+- **Collective Pool** improves retention by covering below-threshold events
+- **Fraud detection** targets < 5% fraudulent claim rate
+
 
 ### Regulatory Framework
 Operates under IRDAI Regulatory Sandbox Guidelines, 2019. GigShield is the technology + distribution layer. Premium collection routed through licensed insurer partner. All financial flows simulated for hackathon.
