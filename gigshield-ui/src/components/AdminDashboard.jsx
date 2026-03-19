@@ -1,7 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Shield, ArrowLeft, Map, Activity, BarChart3, AlertTriangle, Sliders, Award, Users, Clock, TrendingUp, TrendingDown, IndianRupee, CloudRain, Wind, Thermometer, CheckCircle2, XCircle, MapPin, Zap, ChevronRight, ChevronDown, Bell, Search, Filter, RefreshCw, Eye, Download, Calendar, Globe, Layers, Target, PieChart, Flame, ShieldAlert, Fingerprint, Network, Radio, Wifi, Moon, Sun } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RPieChart, Pie, Cell, RadialBarChart, RadialBar, Legend } from 'recharts'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+
+// Fix Leaflet default icon issue with bundlers
+delete L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+})
 
 const sidebarItems = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -274,8 +284,89 @@ function OverviewPanel() {
   )
 }
 
-// MAP PANEL
+// MAP PANEL (with real Leaflet map)
 function MapPanel() {
+  const mapRef = useRef(null)
+  const mapInstanceRef = useRef(null)
+
+  useEffect(() => {
+    if (mapInstanceRef.current) return // already initialized
+
+    const map = L.map(mapRef.current, {
+      center: [12.9352, 77.6245],
+      zoom: 12,
+      zoomControl: true,
+      scrollWheelZoom: true,
+    })
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(map)
+
+    // Add zone markers with circles
+    zones.forEach(zone => {
+      const color = zone.status === 'safe' ? '#00B894' : zone.status === 'watch' ? '#FDCB6E' : '#FF6B6B'
+
+      // Zone radius circle
+      L.circle([zone.lat, zone.lng], {
+        radius: 2500,
+        color: color,
+        fillColor: color,
+        fillOpacity: 0.12,
+        weight: 2,
+        opacity: 0.6,
+      }).addTo(map)
+
+      // Zone marker
+      const markerIcon = L.divIcon({
+        className: 'custom-zone-marker',
+        html: `<div style="
+          width: 36px; height: 36px; border-radius: 50%;
+          background: ${color}30; border: 2.5px solid ${color};
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 2px 8px ${color}40;
+        "><div style="width: 10px; height: 10px; border-radius: 50%; background: ${color};"></div></div>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
+      })
+
+      const marker = L.marker([zone.lat, zone.lng], { icon: markerIcon }).addTo(map)
+
+      marker.bindPopup(`
+        <div style="font-family: Inter, sans-serif; min-width: 180px;">
+          <div style="font-weight: 700; font-size: 13px; margin-bottom: 2px;">${zone.name}</div>
+          <div style="font-size: 10px; color: #94A3B8; margin-bottom: 8px;">${zone.id} &bull; ${zone.workers} workers</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; margin-bottom: 8px;">
+            <div><div style="font-size: 9px; color: #94A3B8;">Rain</div><div style="font-size: 12px; font-weight: 600;">${zone.rainfall}mm</div></div>
+            <div><div style="font-size: 9px; color: #94A3B8;">AQI</div><div style="font-size: 12px; font-weight: 600;">${zone.aqi}</div></div>
+            <div><div style="font-size: 9px; color: #94A3B8;">Temp</div><div style="font-size: 12px; font-weight: 600;">${zone.temp}&deg;C</div></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding-top: 6px; border-top: 1px solid #E2E8F0; font-size: 10px;">
+            <span style="color: #94A3B8;">Risk Score</span>
+            <span style="font-weight: 700; color: ${color};">${zone.risk.toFixed(2)}</span>
+          </div>
+          <div style="margin-top: 4px; display: flex; justify-content: space-between; font-size: 10px;">
+            <span style="color: #94A3B8;">Status</span>
+            <span style="font-weight: 700; color: ${color}; text-transform: uppercase;">${zone.status}</span>
+          </div>
+        </div>
+      `, { className: 'leaflet-popup' })
+    })
+
+    mapInstanceRef.current = map
+
+    // Force resize after mount
+    setTimeout(() => map.invalidateSize(), 100)
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove()
+        mapInstanceRef.current = null
+      }
+    }
+  }, [])
+
   return (
     <div className="space-y-6">
       <div className="glass rounded-2xl p-5">
@@ -287,65 +378,7 @@ function MapPanel() {
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-danger" /> Disrupted</span>
           </div>
         </div>
-        {/* Map placeholder - since Leaflet needs specific setup, showing a rich placeholder */}
-        <div className="relative h-[500px] rounded-2xl bg-dark-surface border border-dark-border overflow-hidden">
-          <div className="absolute inset-0 opacity-20" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%236C5CE7' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }} />
-          {/* Simulated map with zone circles */}
-          {zones.map((zone, i) => {
-            const positions = [
-              { x: '45%', y: '55%' },
-              { x: '40%', y: '35%' },
-              { x: '55%', y: '25%' },
-              { x: '75%', y: '30%' },
-              { x: '35%', y: '65%' },
-            ]
-            const pos = positions[i]
-            const color = zone.status === 'safe' ? '#00B894' : zone.status === 'watch' ? '#FDCB6E' : '#FF6B6B'
-            return (
-              <div key={i} className="absolute group cursor-pointer" style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, -50%)' }}>
-                {/* Pulse ring */}
-                <div className="absolute inset-0 rounded-full animate-ping" style={{ background: `${color}20`, width: '80px', height: '80px', left: '-20px', top: '-20px' }} />
-                {/* Zone circle */}
-                <div className="relative w-10 h-10 rounded-full flex items-center justify-center border-2 z-10"
-                     style={{ background: `${color}30`, borderColor: color }}>
-                  <MapPin size={18} style={{ color }} />
-                </div>
-                {/* Tooltip */}
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 glass-strong rounded-xl p-3 min-w-[180px] opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                  <p className="text-xs font-bold text-text-primary">{zone.name}</p>
-                  <p className="text-[10px] text-text-muted mb-2">{zone.id} • {zone.workers} workers</p>
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <CloudRain size={10} className="mx-auto text-text-muted mb-0.5" />
-                      <p className="text-[10px] text-text-primary">{zone.rainfall}mm</p>
-                    </div>
-                    <div>
-                      <Wind size={10} className="mx-auto text-text-muted mb-0.5" />
-                      <p className="text-[10px] text-text-primary">{zone.aqi}</p>
-                    </div>
-                    <div>
-                      <Thermometer size={10} className="mx-auto text-text-muted mb-0.5" />
-                      <p className="text-[10px] text-text-primary">{zone.temp}°C</p>
-                    </div>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-dark-border flex justify-between text-[10px]">
-                    <span className="text-text-muted">Risk</span>
-                    <span className="font-bold" style={{ color }}>{zone.risk.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-          {/* Map labels */}
-          <div className="absolute bottom-4 left-4 glass-strong rounded-lg p-2 text-[10px] text-text-muted">
-            Bangalore, India • 5 Active Zones
-          </div>
-          <div className="absolute top-4 right-4 glass-strong rounded-lg p-2 text-[10px] text-text-muted flex items-center gap-1">
-            <Globe size={10} /> OpenStreetMap + Leaflet
-          </div>
-        </div>
+        <div ref={mapRef} className="h-[500px] rounded-2xl overflow-hidden border border-dark-border" style={{ zIndex: 1 }} />
       </div>
 
       {/* Zone Detail Cards */}

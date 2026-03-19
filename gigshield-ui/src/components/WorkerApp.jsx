@@ -437,6 +437,7 @@ function GigBotPanel({ onClose }) {
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [lang, setLang] = useState('en')
+  const { isDark } = useTheme()
   const messagesEnd = useRef(null)
 
   useEffect(() => { messagesEnd.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
@@ -461,8 +462,12 @@ function GigBotPanel({ onClose }) {
   }
 
   return (
-    <div className="absolute inset-x-0 bottom-[56px] top-[40px] z-40 bg-dark/97 backdrop-blur-2xl flex flex-col rounded-t-3xl border-t border-primary/20 shadow-2xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-dark-border">
+    <div className={`absolute inset-x-0 bottom-[56px] top-[40px] z-40 backdrop-blur-2xl flex flex-col rounded-t-3xl shadow-2xl overflow-hidden ${
+      isDark 
+        ? 'bg-dark/97 border-t border-primary/20' 
+        : 'bg-white/98 border-t border-gray-200'
+    }`}>
+      <div className={`flex items-center justify-between px-4 py-2.5 border-b ${isDark ? 'border-dark-border' : 'border-gray-100'}`}>
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg gradient-primary flex items-center justify-center">
             <MessageCircle size={14} className="text-white" />
@@ -477,7 +482,9 @@ function GigBotPanel({ onClose }) {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-dark-surface border border-dark-border text-text-secondary">
+                  className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                    isDark ? 'bg-dark-surface border-dark-border text-text-secondary' : 'bg-gray-100 border-gray-200 text-gray-600'
+                  }`}>
             {lang === 'en' ? 'हिं' : 'EN'}
           </button>
           <button onClick={onClose} className="text-text-muted"><X size={16} /></button>
@@ -487,7 +494,11 @@ function GigBotPanel({ onClose }) {
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.from === 'user' ? 'justify-end' : 'justify-start'} slide-up`}>
             <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs leading-relaxed whitespace-pre-line ${
-              m.from === 'user' ? 'gradient-primary text-white rounded-br-md' : 'bg-dark-surface text-text-primary rounded-bl-md'
+              m.from === 'user' 
+                ? 'gradient-primary text-white rounded-br-md' 
+                : isDark
+                  ? 'bg-dark-surface text-text-primary rounded-bl-md'
+                  : 'bg-gray-100 text-gray-700 rounded-bl-md'
             }`}>
               {m.text}
             </div>
@@ -495,10 +506,10 @@ function GigBotPanel({ onClose }) {
         ))}
         {isTyping && (
           <div className="flex justify-start">
-            <div className="bg-dark-surface rounded-2xl rounded-bl-md px-4 py-3 flex gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-text-muted/60 animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-2 h-2 rounded-full bg-text-muted/60 animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-2 h-2 rounded-full bg-text-muted/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className={`rounded-2xl rounded-bl-md px-4 py-3 flex gap-1.5 ${isDark ? 'bg-dark-surface' : 'bg-gray-100'}`}>
+              <div className={`w-2 h-2 rounded-full animate-bounce ${isDark ? 'bg-text-muted/60' : 'bg-gray-400'}`} style={{ animationDelay: '0ms' }} />
+              <div className={`w-2 h-2 rounded-full animate-bounce ${isDark ? 'bg-text-muted/60' : 'bg-gray-400'}`} style={{ animationDelay: '150ms' }} />
+              <div className={`w-2 h-2 rounded-full animate-bounce ${isDark ? 'bg-text-muted/60' : 'bg-gray-400'}`} style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         )}
@@ -508,18 +519,28 @@ function GigBotPanel({ onClose }) {
       <div className="px-3 pb-1.5 flex gap-1.5 overflow-x-auto">
         {['Claim Status', 'My Premium', 'Triggers', 'GigPoints', 'Pool Info'].map((q, i) => (
           <button key={i} onClick={() => sendMessage(q)}
-                  className="whitespace-nowrap px-3 py-1.5 rounded-full text-[10px] font-semibold bg-dark-surface border border-dark-border text-text-secondary hover:border-primary/30 hover:text-primary transition-all">
+                  className={`whitespace-nowrap px-3 py-1.5 rounded-full text-[10px] font-semibold border transition-all hover:border-primary/30 hover:text-primary ${
+                    isDark 
+                      ? 'bg-dark-surface border-dark-border text-text-secondary' 
+                      : 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-primary/5'
+                  }`}>
             {q}
           </button>
         ))}
       </div>
-      <div className="p-2.5 border-t border-dark-border flex gap-2">
+      <div className={`p-2.5 border-t flex gap-2 ${isDark ? 'border-dark-border' : 'border-gray-200'}`}>
         <input value={input} onChange={e => setInput(e.target.value)}
                onKeyDown={e => e.key === 'Enter' && sendMessage()}
                placeholder="Ask GigBot anything..."
-               className="flex-1 bg-dark-surface rounded-xl px-3 py-2 text-xs text-text-primary placeholder-text-muted outline-none border border-dark-border focus:border-primary/30" />
-        <button onClick={() => sendMessage()} className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${input.trim() ? 'gradient-primary' : 'bg-dark-surface'}`}>
-          <Send size={14} className={input.trim() ? 'text-white' : 'text-text-muted'} />
+               className={`flex-1 rounded-xl px-3 py-2 text-xs outline-none border focus:border-primary/30 ${
+                 isDark 
+                   ? 'bg-dark-surface text-text-primary placeholder-text-muted border-dark-border' 
+                   : 'bg-gray-50 text-gray-900 placeholder-gray-400 border-gray-200'
+               }`} />
+        <button onClick={() => sendMessage()} className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+          input.trim() ? 'gradient-primary' : isDark ? 'bg-dark-surface' : 'bg-gray-200'
+        }`}>
+          <Send size={14} className={input.trim() ? 'text-white' : isDark ? 'text-text-muted' : 'text-gray-400'} />
         </button>
       </div>
     </div>
