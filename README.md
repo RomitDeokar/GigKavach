@@ -1,10 +1,10 @@
-# 🛡️ GigShield
+# 🛡️ GigKavach
 
 **AI-Powered Parametric Income Protection for India's Q-Commerce Delivery Partners**
 
 > "If your zone goes down, your income doesn't."
 
-**Live Demo:** [gigshield-ui](https://gig-shield.vercel.app/) — React PWA, deployable on Vercel/Netlify/Render
+**Live Demo:** [GigKavach-UI](https://gig-shield.vercel.app/) — React PWA, deployable on Vercel/Netlify/Render
 
 ---
 
