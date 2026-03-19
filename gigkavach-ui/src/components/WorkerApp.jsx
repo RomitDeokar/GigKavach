@@ -476,7 +476,7 @@ function GigBotPanel({ onClose }) {
             <p className="text-sm font-bold text-text-primary">GigBot</p>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-success" />
-              <p className="text-[10px] text-text-muted">Gemini AI-powered · {lang === 'en' ? 'English' : 'Hindi'}</p>
+              <p className="text-[10px] text-text-muted">Your GigKavach AI Agent · {lang === 'en' ? 'English' : 'Hindi'}</p>
             </div>
           </div>
         </div>
