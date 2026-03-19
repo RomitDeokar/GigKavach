@@ -4,7 +4,7 @@
 
 > "If your zone goes down, your income doesn't."
 
-**Live Demo:** [gigshield-ui]([./gigshield-ui/](https://gig-shield.vercel.app/)) — React PWA, deployable on Vercel/Netlify/Render
+**Live Demo:** [gigshield-ui](https://gig-shield.vercel.app/) — React PWA, deployable on Vercel/Netlify/Render
 
 ---
 
