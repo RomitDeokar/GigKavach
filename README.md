@@ -4,7 +4,7 @@
 
 > "If your zone goes down, your income doesn't."
 
-**Live Demo:** [GigKavach-UI](https://gig-shield.vercel.app/) — React PWA, deployable on Vercel/Netlify/Render
+**Live Demo:** [GigKavach-UI](https://gig-kavach.vercel.app/) — React PWA, deployable on Vercel/Netlify/Render
 
 ---
 
@@ -1318,8 +1318,8 @@ Operates under IRDAI Regulatory Sandbox Guidelines, 2019. GigKavach is the techn
 
 ---
 
-## Submission Links
+## Related Links
 
 - **GitHub Repository:** *(this repo)*
-- **Live UI Demo:** [gigshield-ui](./gigshield-ui/)
+- **Live UI Demo:** [GigKavach-ui](https://gig-kavach.vercel.app/)
 - **Demo Video:** [Link — Phase 2]
