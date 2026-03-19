@@ -484,7 +484,7 @@ This Week
 │  🛡️  GIGKAVACH POLICY CERTIFICATE   │
 │       Certificate of Coverage        │
 │                                      │
-│  Policy ID:    GS-2026-HSR-00342    │
+│  Policy ID:    GK-2026-HSR-00342    │
 │  Holder:       Ravi Kumar            │
 │  Zone:         HSR Layout, Bangalore │
 │  Plan:         Pro Shield            │
@@ -507,7 +507,7 @@ This Week
 ### 8.6 Claim Statement / EOB (Explanation of Benefits)
 
 ```
-CLAIM STATEMENT — GS-CLM-0892
+CLAIM STATEMENT — GK-CLM-0892
 
   Event:       Heavy Rainfall
   Zone:        HSR Layout
@@ -732,7 +732,7 @@ Friday 6:00 PM  →  Push Notification:
 
 Saturday 10:00 AM  →  SMS (Twilio):
   "GigKavach: Policy expires TOMORROW (Sunday midnight).
-   Renew: gigshield.app/renew | Reply STOP to opt out."
+   Renew: gigkavach.app/renew | Reply STOP to opt out."
 
 Sunday 6:00 PM  →  Push Notification:
   " 6 hours left on your policy.
@@ -740,7 +740,7 @@ Sunday 6:00 PM  →  Push Notification:
 
 Sunday 11:30 PM  →  Final SMS:
   "GigKavach: 30 mins to expiry.
-   Renew now: gigshield.app/renew"
+   Renew now: gigkavach.app/renew"
 
 Monday 12:00 AM  →  If not renewed:
    Coverage Gap Detector activates on next app open
