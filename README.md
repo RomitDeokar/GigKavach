@@ -86,25 +86,25 @@ Typical Profile:
 
 **Scenario 1 — Heavy Monsoon Rain**
 
-> Ravi is a Zepto partner in HSR Layout, Bangalore. At 2 PM, rainfall hits 20mm/hr. GigShield detects the breach and waits 10 minutes — sustained. Ravi's GPS confirms he is inside the zone, and his app shows 2 deliveries in the last 30 minutes. Claim auto-approved. ₹600 credited before he gets home. His Protection Timeline updates: *"2:10 PM — Rainfall Trigger — +₹600"*. He earns +200 GigPoints.
+> Ravi is a Zepto partner in HSR Layout, Bangalore. At 2 PM, rainfall hits 20mm/hr. GigKavach detects the breach and waits 10 minutes — sustained. Ravi's GPS confirms he is inside the zone, and his app shows 2 deliveries in the last 30 minutes. Claim auto-approved. ₹600 credited before he gets home. His Protection Timeline updates: *"2:10 PM — Rainfall Trigger — +₹600"*. He earns +200 GigPoints.
 
 ---
 
 **Scenario 2 — Hazardous AQI (Delhi Winter)**
 
-> Priya works for Blinkit in Dwarka, Delhi. November AQI spikes to 340. Blinkit suspends outdoor operations. GigShield detects the breach via WAQI API. Priya was active that morning — claim validated automatically. ₹600 credited. Her Savings Dashboard now shows: *"Lifetime Net Savings: ₹1,800 — 420% return on protection."*
+> Priya works for Blinkit in Dwarka, Delhi. November AQI spikes to 340. Blinkit suspends outdoor operations. GigKavach detects the breach via WAQI API. Priya was active that morning — claim validated automatically. ₹600 credited. Her Savings Dashboard now shows: *"Lifetime Net Savings: ₹1,800 — 420% return on protection."*
 
 ---
 
 **Scenario 3 — Dark Store Closure**
 
-> Arjun's Zepto dark store in Koramangala closes for 4 hours due to a local strike. GigShield receives the platform closure signal for Zone KOR-02. All 31 active, validated workers receive ₹600 each — ₹18,600 paid out in under 60 seconds. Zero manual intervention.
+> Arjun's Zepto dark store in Koramangala closes for 4 hours due to a local strike. GigKavach receives the platform closure signal for Zone KOR-02. All 31 active, validated workers receive ₹600 each — ₹18,600 paid out in under 60 seconds. Zero manual intervention.
 
 ---
 
 **Scenario 4 — Pre-Disruption Alert (Parametric Transparency)**
 
-> Meera opens GigShield at noon. Her zone status card shows 🟡 **ZONE WATCH** — *"Rainfall at 12mm/hr, approaching threshold of 15mm/hr. Your policy is active ✅"*. She continues working, knowing she's covered. 20 minutes later it tips — her claim auto-fires. She knew it was coming before it happened.
+> Meera opens GigKavach at noon. Her zone status card shows 🟡 **ZONE WATCH** — *"Rainfall at 12mm/hr, approaching threshold of 15mm/hr. Your policy is active ✅"*. She continues working, knowing she's covered. 20 minutes later it tips — her claim auto-fires. She knew it was coming before it happened.
 
 ---
 
@@ -116,7 +116,7 @@ Typical Profile:
 
 **Scenario 6 — Coverage Gap Detector**
 
-> Suresh forgot to renew on Sunday. Monday morning a trigger fires. He opens GigShield and sees: *"34 active Pro Shield workers each received ₹600 today. You would have received ₹600. Policy lapsed Sunday midnight. Renew now → ₹108/week."* He renews immediately and enables auto-renew.
+> Suresh forgot to renew on Sunday. Monday morning a trigger fires. He opens GigKavach and sees: *"34 active Pro Shield workers each received ₹600 today. You would have received ₹600. Policy lapsed Sunday midnight. Renew now → ₹108/week."* He renews immediately and enables auto-renew.
 
 ---
 
@@ -195,7 +195,7 @@ Typical Profile:
 
 6. RENEWAL
    ├── Friday 6 PM push: "Policy expires in 2 days — renew now"
-   ├── Saturday 10 AM SMS: "Policy expires tomorrow — gigshield.app/renew"
+   ├── Saturday 10 AM SMS: "Policy expires tomorrow — GigKavach.app/renew"
    ├── Sunday 6 PM final push: "6 hours left on your policy"
    ├── Sunday 11:30 PM final SMS: "30 mins to expiry"
    ├── Auto-renew toggle available (UPI mandate simulation)
@@ -711,7 +711,7 @@ GigBot: GigKavach covers income lost due to:
 - Payout timing and UPI troubleshooting
 
 **Technical implementation:**
-- System prompt contains GigShield policy rules, trigger thresholds, and the worker's personal policy + claim data injected per session
+- System prompt contains GigKavach policy rules, trigger thresholds, and the worker's personal policy + claim data injected per session
 - Hindi / English auto-detection — responds in the worker's language
 - Floating chat button (bottom right corner) on all worker screens
 - Fallback: "Talk to Support" CTA for edge cases the bot can't resolve
@@ -1274,7 +1274,7 @@ Monsoon Season (Jun–Sep):
   ~3 events/week × 150 workers affected × ₹500 avg payout
   = ₹2,25,000/week gross claims
   Loss Ratio = 2.27  →  Reinsurer absorbs 70% above 1.5× threshold
-  GigShield net payout:  ₹44,550/week  →  Net Loss Ratio: 0.45
+  GigKavach net payout:  ₹44,550/week  →  Net Loss Ratio: 0.45
 
 Off-Season (Oct–May):
   ~0.8 events/week × 40 workers affected × ₹500 avg payout
