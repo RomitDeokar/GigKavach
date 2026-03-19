@@ -44,7 +44,7 @@ export default function LandingPage({ onNavigate }) {
             <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
               <Shield size={16} className="text-white" />
             </div>
-            <span className="text-lg font-bold text-text-primary">GigShield</span>
+            <span className="text-lg font-bold text-text-primary">GigKavach</span>
           </div>
           <div className="hidden md:flex items-center gap-8">
             <a href="#how" className="text-sm text-text-muted hover:text-text-primary transition-colors">How It Works</a>
@@ -85,7 +85,7 @@ export default function LandingPage({ onNavigate }) {
                 <span className="text-gradient">Auto-Protected.</span>
               </h1>
               <p className="text-lg text-text-secondary leading-relaxed mb-8 max-w-lg">
-                Rain shuts down your zone? AQI spikes? Dark store closes? GigShield detects it in real-time and pays you in under 60 seconds. No claims. No paperwork. No waiting.
+                Rain shuts down your zone? AQI spikes? Dark store closes? GigKavach detects it in real-time and pays you in under 60 seconds. No claims. No paperwork. No waiting.
               </p>
               <div className="flex flex-wrap gap-3 mb-10">
                 <button onClick={() => onNavigate('worker')} className="group flex items-center gap-2 px-6 py-3 gradient-primary rounded-xl text-white font-semibold text-sm hover:opacity-90 transition-all shadow-lg shadow-primary/25">
@@ -102,7 +102,7 @@ export default function LandingPage({ onNavigate }) {
               <div className="flex items-center gap-4">
                 <div className="flex -space-x-2">
                   {['R', 'P', 'A', 'M', 'S'].map((l, i) => (
-                    <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold border-2 border-white dark:border-dark">
+                    <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold border-2 border-dark-border">
                       {l}
                     </div>
                   ))}
@@ -293,7 +293,7 @@ export default function LandingPage({ onNavigate }) {
               { q: 'How fast are payouts?', a: 'Under 60 seconds. When a trigger is detected, our system runs 4 automated fraud checks (GPS, activity, session, duplicate) and sends money directly to your UPI if all pass.' },
               { q: 'What if I\'m not working when a trigger happens?', a: 'Our 4-layer fraud detection verifies you were actively working in the zone during the disruption. GPS location, delivery activity, app session, and duplicate claim checks all must pass.' },
               { q: 'Can I cancel anytime?', a: 'Yes. Weekly plans with no lock-in. Simply don\'t renew the next week. Your GigPoints and tier status are preserved for 30 days.' },
-              { q: 'How is this different from regular health/accident insurance?', a: 'GigShield strictly covers income loss from external disruptions (weather, AQI, store closures). We do NOT cover health, accidents, or vehicle damage. This is complementary coverage for the earnings you lose when you can\'t work.' },
+              { q: 'How is this different from regular health/accident insurance?', a: 'GigKavach strictly covers income loss from external disruptions (weather, AQI, store closures). We do NOT cover health, accidents, or vehicle damage. This is complementary coverage for the earnings you lose when you can\'t work.' },
             ].map((faq, i) => (
               <div key={i} className="border border-dark-border/60 rounded-xl overflow-hidden">
                 <button 
@@ -338,7 +338,7 @@ export default function LandingPage({ onNavigate }) {
             <div className="w-6 h-6 rounded-md gradient-primary flex items-center justify-center">
               <Shield size={12} className="text-white" />
             </div>
-            <span className="text-sm font-semibold text-text-primary">GigShield</span>
+            <span className="text-sm font-semibold text-text-primary">GigKavach</span>
             <span className="text-xs text-text-muted">| Guidewire DEVTrails 2026</span>
           </div>
           <p className="text-xs text-text-muted">Built by Team SRM — Rian, Romit, Saidhiraj, Pragalbh, Manmohan</p>
@@ -352,7 +352,7 @@ export default function LandingPage({ onNavigate }) {
 // ─── PHONE MOCKUP COMPONENT (Compact) ───────────────
 function PhoneMockup() {
   return (
-    <div className="w-[320px] rounded-[36px] border-2 border-[#1a1333] dark:border-dark-border/80 bg-dark overflow-hidden shadow-2xl shadow-black/40 relative landing-phone-frame">
+    <div className="w-[320px] rounded-[36px] border-2 border-dark-border bg-dark overflow-hidden shadow-2xl shadow-black/40 relative landing-phone-frame">
       {/* Notch */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120px] h-[26px] bg-black rounded-b-2xl z-10" />
       

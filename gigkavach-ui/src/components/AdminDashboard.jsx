@@ -94,7 +94,7 @@ export default function AdminDashboard({ onBack }) {
           <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shrink-0">
             <Shield size={18} className="text-white" />
           </div>
-          {sidebarOpen && <span className="text-sm font-bold text-text-primary whitespace-nowrap">GigShield Admin</span>}
+          {sidebarOpen && <span className="text-sm font-bold text-text-primary whitespace-nowrap">GigKavach Admin</span>}
         </div>
         <nav className="flex-1 px-2 py-2 space-y-1">
           {sidebarItems.map(item => (

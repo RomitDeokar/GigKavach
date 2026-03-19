@@ -42,7 +42,7 @@ const reminderSchedule = [
 const chatResponses = {
   'claim status': { en: 'Your latest claim GS-CLM-0892 was auto-approved on Mar 10 at 12:11 PM. Payout: ₹600 sent to your UPI (ravi@okicici). All 4 fraud checks passed.', hi: 'Aapka latest claim GS-CLM-0892 Mar 10 ko 12:11 PM par auto-approve hua. ₹600 aapke UPI (ravi@okicici) mein bheja gaya.' },
   'premium': { en: 'Your current Pro Shield premium is ₹108/week (base ₹99 + 9% zone risk adjustment). You get 5% Reliable tier discount, so you pay ₹103/week.', hi: 'Aapka Pro Shield premium ₹108/week hai (base ₹99 + 9% zone risk). Reliable tier discount 5% ke baad aap ₹103/week pay karte ho.' },
-  'triggers': { en: 'GigShield covers 6 triggers: Heavy Rain (>15mm/hr), Extreme Heat (>43°C), Severe AQI (>300), Flash Flood (IMD Alert), Dark Store Closure, and Local Curfew.', hi: 'GigShield 6 triggers cover karta hai: Heavy Rain (>15mm/hr), Extreme Heat (>43°C), AQI (>300), Flash Flood, Dark Store Closure, aur Curfew.' },
+  'triggers': { en: 'GigKavach covers 6 triggers: Heavy Rain (>15mm/hr), Extreme Heat (>43°C), Severe AQI (>300), Flash Flood (IMD Alert), Dark Store Closure, and Local Curfew.', hi: 'GigKavach 6 triggers cover karta hai: Heavy Rain (>15mm/hr), Extreme Heat (>43°C), AQI (>300), Flash Flood, Dark Store Closure, aur Curfew.' },
   'points': { en: 'You have 2,450 GigPoints (Reliable tier). You\'re only 50 pts away from Veteran tier (10% discount)!', hi: 'Aapke paas 2,450 GigPoints hain (Reliable tier). Veteran tier (10% discount) ke liye sirf 50 points aur chahiye!' },
   'pool': { en: 'Your zone HSR-01 has a Collective Protection Pool with 34 members. Pool balance: ₹1,240. Max draw: ₹500/month.', hi: 'Aapke zone HSR-01 ka Collective Pool mein 34 members hain. Balance: ₹1,240. Max draw: ₹500/month.' },
   'default': { en: "I can help you with: claim status, premium info, trigger details, GigPoints, or pool info. Just type your question!", hi: "Main aapki madad kar sakta hoon: claim status, premium info, trigger details, GigPoints, ya pool info." },
@@ -114,7 +114,7 @@ export default function WorkerApp({ onBack }) {
                 <div className="w-20 h-20 rounded-3xl gradient-primary flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-primary/40 float">
                   <Shield size={40} className="text-white" />
                 </div>
-                <h1 className="text-3xl font-extrabold text-text-primary mb-1">GigShield</h1>
+                <h1 className="text-3xl font-extrabold text-text-primary mb-1">GigKavach</h1>
                 <p className="text-text-secondary text-sm mb-1">Parametric Income Protection</p>
                 <p className="text-text-muted text-[11px] mb-10 tracking-wide">for Q-Commerce Delivery Partners</p>
                 <button onClick={() => { setScreen('app'); setShowOnboarding(true); setOnboardStep(0) }}
@@ -870,13 +870,13 @@ function HomeTab({ setShowNotif, showNotif, setShowPurchase }) {
         <SectionLabel>Earnings Impact</SectionLabel>
         <div className="flex items-center justify-between mb-2">
           <div>
-            <p className="text-[10px] text-text-muted">Without GigShield</p>
+            <p className="text-[10px] text-text-muted">Without GigKavach</p>
             <p className="text-base font-bold text-danger">-₹4,800</p>
             <p className="text-[9px] text-text-muted">Lost to disruptions</p>
           </div>
           <div className="w-px h-10 bg-dark-border" />
           <div className="text-right">
-            <p className="text-[10px] text-text-muted">With GigShield</p>
+            <p className="text-[10px] text-text-muted">With GigKavach</p>
             <p className="text-base font-bold text-success">+₹1,968</p>
             <p className="text-[9px] text-text-muted">Net protected</p>
           </div>
@@ -905,7 +905,7 @@ function PolicyTab({ autoRenew, setAutoRenew }) {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Shield size={16} className="text-primary" />
-              <span className="text-xs font-bold text-primary">GIGSHIELD POLICY</span>
+              <span className="text-xs font-bold text-primary">GIGKAVACH POLICY</span>
             </div>
             <button className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-primary/10 text-primary text-[10px] font-medium">
               <Download size={10} /> PDF
