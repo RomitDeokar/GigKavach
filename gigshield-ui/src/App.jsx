@@ -10,7 +10,7 @@ function App() {
   const { isDark } = useTheme()
 
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-dark' : 'bg-dark'}`}>
+    <div className="min-h-screen bg-dark">
       {view === 'landing' && <LandingPage onNavigate={setView} />}
       {view === 'worker' && <WorkerApp onBack={() => setView('landing')} />}
       {view === 'admin' && <AdminDashboard onBack={() => setView('landing')} />}
