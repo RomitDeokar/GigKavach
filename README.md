@@ -46,11 +46,11 @@ Unlike food delivery workers who can operate across a wider area, Q-Commerce par
 
 ## 2. Our Solution
 
-**GigShield** is an AI-enabled parametric income protection platform built exclusively for Q-Commerce delivery partners.
+**GigKavach** is an AI-enabled parametric income protection platform built exclusively for Q-Commerce delivery partners.
 
 ### How It's Different from Traditional Insurance
 
-| Traditional Insurance | GigShield |
+| Traditional Insurance | GigKavach |
 |---|---|
 | Worker files a claim manually | Claims triggered automatically |
 | Payout takes days or weeks | Payout processed in under 60 seconds |
@@ -62,7 +62,7 @@ Unlike food delivery workers who can operate across a wider area, Q-Commerce par
 
 ### Core Principle — Parametric Insurance
 
-GigShield does **not** insure health, life, accidents, or vehicle damage. It insures **lost income** caused by external, objectively measurable disruptions. When a trigger threshold is breached and sustained, payouts happen automatically — no claim form, no adjuster, no waiting.
+GigKavach does **not** insure health, life, accidents, or vehicle damage. It insures **lost income** caused by external, objectively measurable disruptions. When a trigger threshold is breached and sustained, payouts happen automatically — no claim form, no adjuster, no waiting.
 
 ---
 
@@ -166,7 +166,7 @@ Typical Profile:
 3. ACTIVE COVERAGE
    ├── Zone Status Widget:  SAFE /  WATCH /  DISRUPTED
    ├── Pre-disruption alerts pushed to lock screen when approaching threshold
-   ├── GigShield monitors zone every 5 minutes (background polling)
+   ├── GigKavach monitors zone every 5 minutes (background polling)
    ├── GigBot available 24/7 for Hindi + English help
    └── Dashboard shows: active plan, GigPoints balance, weekly earnings protected
 
@@ -406,7 +406,7 @@ This transforms insurance from a passive *"I hope I never need it"* product into
 ### 8.1 Savings Dashboard
 
 ```
- Your GigShield Savings
+ Your GigKavach Savings
 
   Total Premiums Paid:      ₹432  (lifetime)
   Total Payouts Received:   ₹2,400 (lifetime)
@@ -481,7 +481,7 @@ This Week
 
 ```
 ┌─────────────────────────────────────┐
-│  🛡️  GIGSHIELD POLICY CERTIFICATE   │
+│  🛡️  GIGKAVACH POLICY CERTIFICATE   │
 │       Certificate of Coverage        │
 │                                      │
 │  Policy ID:    GS-2026-HSR-00342    │
@@ -652,7 +652,7 @@ Zone Pool — HSR Layout
 ---
 
 ### 9.3 GigBot — AI Chatbot
-Claude-powered chatbot. Hindi + English auto-detection. Handles claim rejections with specific validation checklists, coverage questions, GigPoints queries, renewal help.
+Hindi + English auto-detection. Handles claim rejections with specific validation checklists, coverage questions, GigPoints queries, renewal help.
 
 **Sample conversation:**
 
@@ -688,7 +688,7 @@ GigBot: Here's what happened with your last claim:
 
 Worker: What events are covered?
 
-GigBot: GigShield covers income lost due to:
+GigBot: GigKavach covers income lost due to:
          Heavy Rain (>15mm/hr, 10 min sustained)
          Severe AQI (>300)
          Extreme Heat (>43°C)
@@ -711,7 +711,6 @@ GigBot: GigShield covers income lost due to:
 - Payout timing and UPI troubleshooting
 
 **Technical implementation:**
-- `claude-sonnet-4-6` via Anthropic SDK
 - System prompt contains GigShield policy rules, trigger thresholds, and the worker's personal policy + claim data injected per session
 - Hindi / English auto-detection — responds in the worker's language
 - Floating chat button (bottom right corner) on all worker screens
@@ -732,7 +731,7 @@ Friday 6:00 PM  →  Push Notification:
    Next week forecast: ₹127 (+18%) — buy today "
 
 Saturday 10:00 AM  →  SMS (Twilio):
-  "GigShield: Policy expires TOMORROW (Sunday midnight).
+  "GigKavach: Policy expires TOMORROW (Sunday midnight).
    Renew: gigshield.app/renew | Reply STOP to opt out."
 
 Sunday 6:00 PM  →  Push Notification:
@@ -740,7 +739,7 @@ Sunday 6:00 PM  →  Push Notification:
    Auto-renew is OFF — tap to enable before midnight."
 
 Sunday 11:30 PM  →  Final SMS:
-  "GigShield: 30 mins to expiry.
+  "GigKavach: 30 mins to expiry.
    Renew now: gigshield.app/renew"
 
 Monday 12:00 AM  →  If not renewed:
@@ -764,7 +763,7 @@ Monday 12:00 AM  →  If not renewed:
 
 ### 9.5 Premium Price Forecast
 7-day forward pricing. Worker sees: "This week ₹108 → Next week ₹127 (+18%) — Monsoon approaching." Creates urgency, builds trust through transparency. No insurance product in India does this.
- Similar to how flight price trackers show *"prices expected to rise — book now"*, GigShield shows workers a **7-day forward premium forecast** so they know if buying today is cheaper than waiting.
+ Similar to how flight price trackers show *"prices expected to rise — book now"*, GigKavach shows workers a **7-day forward premium forecast** so they know if buying today is cheaper than waiting.
 
 **What the worker sees on the Policy screen:**
 
@@ -1114,7 +1113,7 @@ Fraud rings evolve. Our defenses must evolve faster.
 | Play Store review: 3–7 days | Workers are on phones between deliveries |
 | Workers have 3–4 apps already (storage-sensitive) | Push notifications need mobile |
 | Version updates require user action | GPS detection needs mobile browser |
-| Judges won't install unknown APK | — |
+| installing unknown APK | — |
 
 ### Why PWA Wins
 
@@ -1263,7 +1262,7 @@ Achieved through 5-layer adversarial scoring + network graph ring detection + ho
 | Toffee Insurance | Health/Accident | Manual | Days | No |
 | Kover (Acko) | Vehicle/Health | Manual | Days | Partial |
 | Onsurity | Group Health | Manual | Weeks | No |
-| **GigShield** | **Income only** | **Parametric/Auto** | **<60 sec** | **Yes — micro-zone** |
+| **GigKavach** | **Income only** | **Parametric/Auto** | **<60 sec** | **Yes — micro-zone** |
 
 ### Unit Economics (1,000 workers, Bangalore)
 
@@ -1300,7 +1299,7 @@ Annual Per-Worker Economics:
 
 
 ### Regulatory Framework
-Operates under IRDAI Regulatory Sandbox Guidelines, 2019. GigShield is the technology + distribution layer. Premium collection routed through licensed insurer partner. All financial flows simulated for hackathon.
+Operates under IRDAI Regulatory Sandbox Guidelines, 2019. GigKavach is the technology + distribution layer. Premium collection routed through licensed insurer partner. All financial flows simulated for hackathon.
 
 ---
 
