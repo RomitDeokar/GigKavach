@@ -1320,6 +1320,6 @@ Operates under IRDAI Regulatory Sandbox Guidelines, 2019. GigKavach is the techn
 
 ## Related Links
 
-- **GitHub Repository:** *(this repo)*
+- **GitHub Repository:** *https://github.com/RomitDeokar/GigKavach*
 - **Live UI Demo:** [GigKavach-ui](https://gig-kavach.vercel.app/)
-- **Demo Video:** [Link — Phase 2]
+- **Demo Video:** [https://www.youtube.com/watch?v=CyGIaixXBDc]
