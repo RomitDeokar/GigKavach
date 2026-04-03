@@ -13,6 +13,42 @@ const tabs = [
   { id: 'profile', label: 'Profile', icon: Settings },
 ]
 
+const fallbackLifetimeData = [
+  { month: 'Oct', premiums: 49, payouts: 0, net: -49 },
+  { month: 'Nov', premiums: 52, payouts: 600, net: 548 },
+  { month: 'Dec', premiums: 55, payouts: 0, net: -55 },
+  { month: 'Jan', premiums: 99, payouts: 600, net: 501 },
+  { month: 'Feb', premiums: 103, payouts: 1200, net: 1097 },
+  { month: 'Mar', premiums: 108, payouts: 600, net: 492 },
+]
+
+const fallbackForecastData = [
+  { day: 'Thu', premium: 108, risk: 0.74, driver: 'Rain' },
+  { day: 'Fri', premium: 115, risk: 0.78, driver: 'AQI' },
+  { day: 'Sat', premium: 121, risk: 0.82, driver: 'Rain+AQI' },
+  { day: 'Sun', premium: 128, risk: 0.85, driver: 'Flood' },
+  { day: 'Mon', premium: 141, risk: 0.91, driver: 'Monsoon' },
+  { day: 'Tue', premium: 132, risk: 0.87, driver: 'Rain' },
+  { day: 'Wed', premium: 118, risk: 0.79, driver: 'AQI' },
+]
+
+const fallbackReminderSchedule = [
+  { day: 'Fri', time: '6:00 PM', type: 'push', status: 'sent', message: 'Your Pro Shield expires Sunday! Renew to keep your 7-week streak.' },
+  { day: 'Sat', time: '10:00 AM', type: 'sms', status: 'sent', message: 'Rain expected Monday! Renew now to stay protected. Risk score rising to 0.82.' },
+  { day: 'Sun', time: '6:00 PM', type: 'push', status: 'scheduled', message: 'Last chance! 6 hrs left on your Pro Shield. Your zone paid ₹20,400 this week.' },
+  { day: 'Sun', time: '11:30 PM', type: 'push', status: 'scheduled', message: 'URGENT: Policy expires in 30 min. Tap to auto-renew and save your streak!' },
+  { day: 'Mon', time: '12:00 AM', type: 'auto', status: 'pending', message: 'Auto-renew activated. ₹103 debited via UPI.' },
+]
+
+const chatResponses = {
+  'claim status': { en: 'Your latest claim GS-CLM-0892 was auto-approved on Mar 10 at 12:11 PM. Payout: ₹600 sent to your UPI (ravi@okicici). All 4 fraud checks passed.', hi: 'Aapka latest claim GS-CLM-0892 Mar 10 ko 12:11 PM par auto-approve hua. ₹600 aapke UPI (ravi@okicici) mein bheja gaya.' },
+  'premium': { en: 'Your current Pro Shield premium is ₹108/week (base ₹99 + 9% zone risk adjustment). You get 5% Reliable tier discount, so you pay ₹103/week.', hi: 'Aapka Pro Shield premium ₹108/week hai (base ₹99 + 9% zone risk). Reliable tier discount 5% ke baad aap ₹103/week pay karte ho.' },
+  'triggers': { en: 'GigShield covers 6 triggers: Heavy Rain (>15mm/hr), Extreme Heat (>43°C), Severe AQI (>300), Flash Flood (IMD Alert), Dark Store Closure, and Local Curfew.', hi: 'GigShield 6 triggers cover karta hai: Heavy Rain (>15mm/hr), Extreme Heat (>43°C), AQI (>300), Flash Flood, Dark Store Closure, aur Curfew.' },
+  'points': { en: 'You have 2,450 GigPoints (Reliable tier). You\'re only 50 pts away from Veteran tier (10% discount)!', hi: 'Aapke paas 2,450 GigPoints hain (Reliable tier). Veteran tier (10% discount) ke liye sirf 50 points aur chahiye!' },
+  'pool': { en: 'Your zone HSR-01 has a Collective Protection Pool with 34 members. Pool balance: ₹1,240. Max draw: ₹500/month.', hi: 'Aapke zone HSR-01 ka Collective Pool mein 34 members hain. Balance: ₹1,240. Max draw: ₹500/month.' },
+  'default': { en: "I can help you with: claim status, premium info, trigger details, GigPoints, or pool info. Just type your question!", hi: "Main aapki madad kar sakta hoon: claim status, premium info, trigger details, GigPoints, ya pool info." },
+}
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload) return null
   return (
@@ -917,6 +953,62 @@ function HomeTab({ dashData, setShowNotif, showNotif, openPurchase, notification
         </button>
       )}
 
+      {/* Collective Pool */}
+      <div className="glass rounded-2xl p-3.5">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2"><Users size={14} className="text-accent" /><p className="text-sm font-semibold text-text-primary">Zone Pool</p></div>
+          <span className="text-[10px] text-accent font-medium">{zone.id || 'HSR-01'}</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-dark-surface rounded-xl p-2 text-center"><p className="text-sm font-bold text-text-primary">{zone.activeWorkers || 34}</p><p className="text-[9px] text-text-muted">Members</p></div>
+          <div className="bg-dark-surface rounded-xl p-2 text-center"><p className="text-sm font-bold text-accent">₹{zone.poolBalance || '1,240'}</p><p className="text-[9px] text-text-muted">Pool Balance</p></div>
+          <div className="bg-dark-surface rounded-xl p-2 text-center"><p className="text-sm font-bold text-success">Strong</p><p className="text-[9px] text-text-muted">Health</p></div>
+        </div>
+        <p className="text-[10px] text-text-secondary mt-2">Your contribution: ₹10/week | Covers ~2 below-threshold events</p>
+      </div>
+
+      {/* Weather Radar Mini */}
+      <div className="glass rounded-2xl p-3.5">
+        <SectionLabel>Live Weather Radar</SectionLabel>
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { time: '1PM', rain: `${zone.metrics?.rainfall ?? 3}mm`, icon: '\u2600\uFE0F', risk: 'low' },
+            { time: '2PM', rain: '8mm', icon: '\uD83C\uDF24\uFE0F', risk: 'low' },
+            { time: '3PM', rain: '14mm', icon: '\uD83C\uDF27\uFE0F', risk: 'med' },
+            { time: '4PM', rain: '19mm', icon: '\u26C8\uFE0F', risk: 'high' },
+          ].map((h, i) => (
+            <div key={i} className={`text-center p-2 rounded-xl ${h.risk === 'high' ? 'bg-danger/10 border border-danger/20' : h.risk === 'med' ? 'bg-warning/10' : 'bg-dark-surface/50'}`}>
+              <p className="text-[10px] text-text-muted">{h.time}</p>
+              <p className="text-lg my-0.5">{h.icon}</p>
+              <p className={`text-[10px] font-bold ${h.risk === 'high' ? 'text-danger' : h.risk === 'med' ? 'text-warning' : 'text-text-primary'}`}>{h.rain}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-[9px] text-warning mt-2 font-medium">\u26A0\uFE0F Trigger likely at 4PM \u2014 Stay protected!</p>
+      </div>
+
+      {/* Earnings Impact Calculator */}
+      <div className="glass rounded-2xl p-3.5">
+        <SectionLabel>Earnings Impact</SectionLabel>
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <p className="text-[10px] text-text-muted">Without GigShield</p>
+            <p className="text-base font-bold text-danger">-₹{savings.wouldHaveLost || '4,800'}</p>
+            <p className="text-[9px] text-text-muted">Lost to disruptions</p>
+          </div>
+          <div className="w-px h-10 bg-dark-border" />
+          <div className="text-right">
+            <p className="text-[10px] text-text-muted">With GigShield</p>
+            <p className="text-base font-bold text-success">+₹{savings.netSavings?.toLocaleString() || '1,968'}</p>
+            <p className="text-[9px] text-text-muted">Net protected</p>
+          </div>
+        </div>
+        <div className="h-1.5 rounded-full bg-dark-border overflow-hidden">
+          <div className="h-full w-[85%] gradient-success rounded-full" />
+        </div>
+        <p className="text-[9px] text-success mt-1.5 font-medium text-center">You're in the top 15% of protected earners in your zone</p>
+      </div>
+
       {/* Emergency SOS */}
       <SosButton />
     </div>
@@ -1026,6 +1118,76 @@ function PolicyTab({ dashData, workerId, loadDashboard, openPurchase }) {
         </div>
       )}
 
+      {/* Zone Risk Assessment */}
+      <div className="glass rounded-2xl p-3.5">
+        <SectionLabel>Zone Risk Assessment</SectionLabel>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="relative w-14 h-14">
+            <svg className="w-14 h-14 -rotate-90" viewBox="0 0 36 36">
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(45,37,80,1)" strokeWidth="3" />
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#g1)" strokeWidth="3" strokeDasharray={`${Math.round((zone.riskScore || 0.74) * 100)}, 100`} strokeLinecap="round" />
+              <defs><linearGradient id="g1"><stop offset="0%" stopColor="#a45b33" /><stop offset="100%" stopColor="#8a6a52" /></linearGradient></defs>
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center"><span className="text-base font-bold text-text-primary">{(zone.riskScore || 0.74).toFixed(2)}</span></div>
+          </div>
+          <div>
+            <p className={`text-sm font-bold ${(zone.riskScore || 0.74) > 0.7 ? 'text-warning' : (zone.riskScore || 0.74) > 0.5 ? 'text-primary' : 'text-success'}`}>
+              {(zone.riskScore || 0.74) > 0.7 ? 'Moderate-High Risk' : (zone.riskScore || 0.74) > 0.5 ? 'Moderate Risk' : 'Low Risk'}
+            </p>
+            <p className="text-[10px] text-text-secondary">90-day zone history</p>
+            <p className="text-[10px] text-text-muted">Premium: +{Math.round(((zone.riskScore || 0.74) - 0.5) * 30)}%</p>
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          {[
+            { label: 'Rainfall', value: 72, color: '#6C5CE7' },
+            { label: 'AQI', value: 58, color: '#FDCB6E' },
+            { label: 'Flood Risk', value: 45, color: '#FF6B6B' },
+            { label: 'Seasonal', value: 85, color: '#8a6a52' },
+          ].map((r, i) => (
+            <div key={i}>
+              <div className="flex justify-between mb-0.5"><span className="text-[9px] text-text-muted">{r.label}</span><span className="text-[9px] text-text-secondary">{r.value}%</span></div>
+              <div className="h-1 rounded-full bg-dark-border overflow-hidden"><div className="h-full rounded-full" style={{ width: `${r.value}%`, background: r.color }} /></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Smart Expiry Reminders */}
+      <div className="glass rounded-2xl p-3.5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2"><BellRing size={15} className="text-accent" /><p className="text-sm font-semibold text-text-primary">Expiry Reminders</p></div>
+          <StatusPill status="success">Active</StatusPill>
+        </div>
+        <div className="space-y-2">
+          {fallbackReminderSchedule.map((r, i) => (
+            <div key={i} className={`flex items-start gap-3 p-2.5 rounded-xl ${
+              r.status === 'sent' ? 'bg-success/[0.04] border border-success/10' :
+              r.status === 'scheduled' ? 'bg-dark-surface/40' :
+              'bg-primary/[0.04] border border-primary/10'
+            }`}>
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center mt-0.5 shrink-0 ${
+                r.type === 'push' ? 'bg-primary/15' : r.type === 'sms' ? 'bg-accent/15' : 'bg-success/15'
+              }`}>
+                {r.type === 'push' ? <Bell size={12} className="text-primary" /> :
+                 r.type === 'sms' ? <Phone size={12} className="text-accent" /> :
+                 <RefreshCw size={12} className="text-success" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-text-secondary leading-relaxed">{r.message}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[9px] text-text-muted">{r.day} {r.time} · {r.type.toUpperCase()}</span>
+                  <span className={`text-[9px] font-bold ml-auto ${r.status === 'sent' ? 'text-success' : r.status === 'scheduled' ? 'text-warning' : 'text-primary'}`}>
+                    {r.status === 'sent' ? '\u2713 Delivered' : r.status === 'scheduled' ? 'Scheduled' : 'Pending'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-[9px] text-text-muted mt-2 italic">Context-aware: Adjusts based on risk surge, streak, and lapse history</p>
+      </div>
+
       {/* Auto-Renew */}
       <div className="glass rounded-2xl p-3.5 flex items-center justify-between">
         <div className="flex items-center gap-2.5"><RefreshCw size={16} className="text-primary" /><div><p className="text-sm font-semibold text-text-primary">Auto-Renew</p><p className="text-[10px] text-text-secondary">UPI mandate active</p></div></div>
@@ -1061,6 +1223,20 @@ function PolicyTab({ dashData, workerId, loadDashboard, openPurchase }) {
           </div>
         )
       })()}
+
+      {/* Claim Processing Pipeline */}
+      <div className="glass rounded-2xl p-3.5">
+        <SectionLabel>Claim Processing Pipeline</SectionLabel>
+        <div className="flex items-center gap-1 mb-3">
+          {['Trigger Detected', 'Fraud Check', 'Approval', 'UPI Payout'].map((step, i) => (
+            <div key={i} className="flex-1 flex items-center">
+              <div className="w-full text-center py-1.5 rounded-lg text-[8px] font-bold bg-success/15 text-success">{step}</div>
+              {i < 3 && <ArrowRight size={10} className="text-success shrink-0 mx-0.5" />}
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 text-[10px] text-text-muted"><Timer size={11} /><span>Average processing: 47 seconds</span></div>
+      </div>
     </div>
   )
 }
@@ -1223,6 +1399,7 @@ function HistoryTab({ dashData, workerId }) {
             <div className="border-t border-dark-border pt-2.5">
               <div className="flex justify-between"><p className="text-sm text-text-secondary">Net Savings</p><p className="text-xl font-black text-gradient">₹{summary.netSavings?.toLocaleString() || 0}</p></div>
               <div className="flex justify-between mt-1"><p className="text-[10px] text-text-muted">Return on Protection</p><p className="text-sm font-bold text-success">{summary.roiPercent || 0}%</p></div>
+              <p className="text-[9px] text-text-muted mt-1.5 italic">Every ₹1 paid → ₹{((summary.roiPercent || 0) / 100).toFixed(2)} back</p>
             </div>
           </div>
           <div className="glass rounded-2xl p-3.5"><SectionLabel>This Week</SectionLabel>
@@ -1232,6 +1409,26 @@ function HistoryTab({ dashData, workerId }) {
               <div className="text-center"><p className="text-base font-bold text-accent">{summary.weeklyTriggerCount || 0}</p><p className="text-[9px] text-text-muted">Triggers</p></div>
             </div>
           </div>
+
+          {/* Protection Score */}
+          <div className="glass rounded-2xl p-3.5">
+            <SectionLabel>Your Protection Score</SectionLabel>
+            <div className="flex items-center gap-4">
+              <div className="relative w-14 h-14">
+                <svg className="w-14 h-14 -rotate-90" viewBox="0 0 36 36">
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(45,37,80,0.4)" strokeWidth="2.5" />
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#protScore)" strokeWidth="2.5" strokeDasharray="92, 100" strokeLinecap="round" />
+                  <defs><linearGradient id="protScore"><stop offset="0%" stopColor="#bc8750" /><stop offset="100%" stopColor="#8a6a52" /></linearGradient></defs>
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center"><span className="text-[15px] font-bold text-success">92</span></div>
+              </div>
+              <div className="flex-1">
+                <p className="text-[13px] font-bold text-success">Excellent</p>
+                <p className="text-[10px] text-text-muted leading-relaxed mt-0.5">Consistent coverage, zero gaps in {dashData?.loyalty?.streakWeeks || 7} weeks. Top 12% in your zone.</p>
+              </div>
+            </div>
+          </div>
+
           {zoneHistory.length > 0 && (
             <div className="glass rounded-2xl p-3.5"><SectionLabel>Zone Events — 30 Days</SectionLabel>
               <div className="space-y-2">
@@ -1247,71 +1444,11 @@ function HistoryTab({ dashData, workerId }) {
         </div>
       )}
 
-      {subTab === 'graph' && (
-        <div className="space-y-3.5">
-          {lifetime.length > 0 && (
-            <div className="glass rounded-2xl p-3.5"><SectionLabel>Monthly Premiums vs Payouts</SectionLabel>
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={lifetime} barGap={2}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(58,48,40,0.2)" vertical={false} />
-                    <XAxis dataKey="month" tick={{ fill: '#9e907f', fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: '#9e907f', fontSize: 9 }} axisLine={false} tickLine={false} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="premiums" fill="#bf5b45" radius={[4, 4, 0, 0]} name="Premiums" barSize={16} />
-                    <Bar dataKey="payouts" fill="#bc8750" radius={[4, 4, 0, 0]} name="Payouts" barSize={16} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          )}
-          {claims.length > 0 && (
-            <div className="glass rounded-2xl p-3.5"><SectionLabel>Event Markers</SectionLabel>
-              <div className="space-y-2">
-                {claims.slice(0, 5).map((c, i) => (
-                  <div key={i} className="flex items-center gap-3 py-1">
-                    <span className="text-[10px] text-text-muted w-8 font-medium">{formatDate(c.triggeredAt).split(' ').slice(0, 2).join(' ')}</span>
-                    <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-primary/15"><CloudRain size={12} className="text-primary" /></div>
-                    <p className="text-[11px] text-text-secondary flex-1">{c.type}</p>
-                    <span className="text-[11px] font-bold text-success">+₹{c.payoutAmount}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {subTab === 'graph' && <GraphSubTabContent lifetime={lifetime} claims={claims} summary={summary} />}
 
-      {subTab === 'pool' && (
-        <div className="space-y-3.5">
-          {poolData ? (
-            <>
-              <div className="relative overflow-hidden rounded-2xl bg-accent/[0.06] border border-accent/20 p-4">
-                <div className="flex items-center gap-3 mb-4"><div className="w-12 h-12 rounded-2xl bg-accent/15 flex items-center justify-center"><Users size={22} className="text-accent" /></div>
-                  <div><p className="text-[14px] font-bold text-text-primary">{dashData?.zone?.name || 'Zone'} Pool</p><p className="text-[11px] text-text-muted">Community Fund</p></div>
-                </div>
-                <div className="grid grid-cols-3 gap-2.5">
-                  {[{ label: 'Members', value: poolData.members, color: 'text-text-primary' }, { label: 'Weekly', value: `₹${poolData.weeklyContribution}`, color: 'text-accent' }, { label: 'Balance', value: `₹${poolData.balance?.toLocaleString()}`, color: 'text-success' }].map((item, i) => (
-                    <div key={i} className="text-center p-2.5 rounded-xl bg-dark-card/50 backdrop-blur-sm"><p className="text-[9px] text-text-muted uppercase tracking-wider">{item.label}</p><p className={`text-[17px] font-bold ${item.color} mt-0.5`}>{item.value}</p></div>
-                  ))}
-                </div>
-              </div>
-              {poolData.motions?.length > 0 && (
-                <div className="glass rounded-2xl p-3.5"><SectionLabel>Pool Motions</SectionLabel>
-                  <div className="space-y-2">
-                    {poolData.motions.map((m, i) => (
-                      <div key={i} className="p-2.5 rounded-xl bg-dark-surface/40">
-                        <div className="flex justify-between mb-1"><p className="text-[11px] text-text-primary font-medium">{m.reason}</p><StatusPill status={m.status === 'approved' ? 'success' : m.status === 'rejected' ? 'danger' : 'warning'}>{m.status}</StatusPill></div>
-                        <p className="text-[10px] text-text-muted">₹{m.requestedAmount} · {m.votesFor} for / {m.votesAgainst} against</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          ) : <Spinner />}
-        </div>
-      )}
+
+      {subTab === 'pool' && <PoolSubTabContent poolData={poolData} dashData={dashData} />}
+
 
       {subTab === 'timeline' && (
         <div className="space-y-3.5">
@@ -1330,6 +1467,221 @@ function HistoryTab({ dashData, workerId }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+
+// ─── GRAPH SUB-TAB (Enhanced) ────────────────────────
+function GraphSubTabContent({ lifetime, claims, summary }) {
+  const [view, setView] = useState('monthly')
+  const chartData = lifetime.length > 0 ? lifetime : fallbackLifetimeData
+  const yearlyData = [
+    { year: '2025 Q4', premiums: 156, payouts: 600, net: 444 },
+    { year: '2026 Q1', premiums: 310, payouts: 2400, net: 2090 },
+  ]
+
+  return (
+    <div className="space-y-3.5">
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { label: 'Paid', value: `₹${summary.premiumsPaid?.toLocaleString() || '466'}`, color: 'text-danger' },
+          { label: 'Received', value: `₹${summary.payoutsReceived?.toLocaleString() || '3,000'}`, color: 'text-success' },
+          { label: 'ROI', value: `${summary.roiPercent || 544}%`, color: 'text-gradient' },
+        ].map((item, i) => (
+          <div key={i} className="glass rounded-xl p-3 text-center">
+            <p className="text-[9px] text-text-muted uppercase tracking-wider">{item.label}</p>
+            <p className={`text-[14px] font-bold ${item.color} mt-0.5`}>{item.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2">
+        {['monthly', 'yearly'].map(v => (
+          <button key={v} onClick={() => setView(v)}
+            className={`flex-1 py-2 rounded-xl text-[11px] font-semibold ${view === v ? 'bg-primary/15 text-primary border border-primary/25' : 'bg-dark-surface/50 text-text-muted'}`}>
+            {v === 'monthly' ? 'Monthly' : 'Quarterly'}
+          </button>
+        ))}
+      </div>
+
+      <div className="glass rounded-2xl p-3.5">
+        <SectionLabel>{view === 'monthly' ? 'Monthly Premiums vs Payouts' : 'Quarterly Overview'}</SectionLabel>
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={view === 'monthly' ? chartData : yearlyData} barGap={2}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(58,48,40,0.2)" vertical={false} />
+              <XAxis dataKey={view === 'monthly' ? 'month' : 'year'} tick={{ fill: '#9e907f', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#9e907f', fontSize: 9 }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="premiums" fill="#bf5b45" radius={[4, 4, 0, 0]} name="Premiums" barSize={16} />
+              <Bar dataKey="payouts" fill="#bc8750" radius={[4, 4, 0, 0]} name="Payouts" barSize={16} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Net Savings Trend */}
+      <div className="glass rounded-2xl p-3.5">
+        <SectionLabel>Net Savings Trend</SectionLabel>
+        <div className="h-28">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData.length > 0 && chartData[0].net !== undefined ? chartData : fallbackLifetimeData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="netGradGraph" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#bc8750" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="#bc8750" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(58,48,40,0.2)" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: '#9e907f', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#9e907f', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Area type="monotone" dataKey="net" stroke="#bc8750" fill="url(#netGradGraph)" strokeWidth={2} dot={{ r: 3, fill: '#bc8750', strokeWidth: 0 }} name="Net Savings" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Event Markers */}
+      <div className="glass rounded-2xl p-3.5">
+        <SectionLabel>Event Markers</SectionLabel>
+        <div className="space-y-2">
+          {(claims.length > 0 ? claims.slice(0, 5) : [
+            { triggeredAt: '2025-11-15', type: 'AQI Trigger (320)', payoutAmount: 600 },
+            { triggeredAt: '2026-01-10', type: 'Heavy Rain (19mm)', payoutAmount: 600 },
+            { triggeredAt: '2026-02-20', type: 'Heat Wave (44°C)', payoutAmount: 600 },
+            { triggeredAt: '2026-03-10', type: 'Rainfall Trigger', payoutAmount: 600 },
+          ]).map((c, i) => {
+            const evIcons = { 'AQI': Wind, 'Rain': CloudRain, 'Heat': Thermometer, 'Flood': AlertTriangle }
+            const evColors = { 'AQI': 'warning', 'Rain': 'primary', 'Heat': 'danger', 'Flood': 'danger' }
+            const typeKey = Object.keys(evIcons).find(k => (c.type || '').includes(k)) || 'Rain'
+            const IconComp = evIcons[typeKey] || CloudRain
+            const color = evColors[typeKey] || 'primary'
+            return (
+              <div key={i} className="flex items-center gap-3 py-1">
+                <span className="text-[10px] text-text-muted w-8 font-medium">{formatDate(c.triggeredAt).split(' ').slice(0, 2).join(' ')}</span>
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center bg-${color}/15`}><IconComp size={12} className={`text-${color}`} /></div>
+                <p className="text-[11px] text-text-secondary flex-1">{c.type}</p>
+                <span className="text-[11px] font-bold text-success">+₹{c.payoutAmount}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── POOL SUB-TAB (Enhanced) ─────────────────────────
+function PoolSubTabContent({ poolData, dashData }) {
+  const [optedIn, setOptedIn] = useState(true)
+  const [showVote, setShowVote] = useState(false)
+
+  const pool = poolData || { members: 34, weeklyContribution: 10, balance: 1240 }
+  const zoneName = dashData?.zone?.name || 'HSR Layout'
+
+  return (
+    <div className="space-y-3.5">
+      {/* Pool Hero */}
+      <div className="relative overflow-hidden rounded-2xl bg-accent/[0.06] border border-accent/20 p-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-2xl bg-accent/15 flex items-center justify-center"><Users size={22} className="text-accent" /></div>
+          <div><p className="text-[14px] font-bold text-text-primary">{zoneName} Pool</p><p className="text-[11px] text-text-muted">Zone {dashData?.zone?.id || 'HSR-01'} · Community Fund</p></div>
+        </div>
+        <div className="grid grid-cols-3 gap-2.5">
+          {[
+            { label: 'Members', value: pool.members || 34, color: 'text-text-primary' },
+            { label: 'Weekly', value: `₹${pool.weeklyContribution || 10}`, color: 'text-accent' },
+            { label: 'Balance', value: `₹${(pool.balance || 1240).toLocaleString()}`, color: 'text-success' },
+          ].map((item, i) => (
+            <div key={i} className="text-center p-2.5 rounded-xl bg-dark-card/50 backdrop-blur-sm">
+              <p className="text-[9px] text-text-muted uppercase tracking-wider">{item.label}</p>
+              <p className={`text-[17px] font-bold ${item.color} mt-0.5`}>{item.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Opt-in Toggle */}
+      <div className="glass rounded-2xl p-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <PiggyBank size={17} className="text-accent" />
+          <div><p className="text-[13px] font-semibold text-text-primary">Pool Membership</p><p className="text-[11px] text-text-muted">₹10/week auto-deducted</p></div>
+        </div>
+        <button onClick={() => setOptedIn(!optedIn)}
+          className={`w-[44px] h-[26px] rounded-full transition-all relative ${optedIn ? 'bg-accent' : 'bg-dark-border'}`}>
+          <div className={`w-[20px] h-[20px] rounded-full bg-white absolute top-[3px] transition-all shadow-sm ${optedIn ? 'right-[3px]' : 'left-[3px]'}`} />
+        </button>
+      </div>
+
+      {/* Pool Rules */}
+      <div className="glass rounded-2xl p-3.5">
+        <SectionLabel>Pool Rules</SectionLabel>
+        <div className="space-y-3">
+          {[
+            { icon: IndianRupee, text: 'Max draw: ₹500 per month per member' },
+            { icon: Timer, text: 'Must be member for 4+ weeks to draw' },
+            { icon: Vote, text: 'Draw requests need 60% peer approval' },
+            { icon: RefreshCw, text: 'Unused balance rolls over each week' },
+            { icon: ShieldCheck, text: 'Only for coverage gaps (policy lapse/exhaustion)' },
+          ].map((rule, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-lg bg-accent/10 flex items-center justify-center mt-0.5 shrink-0"><rule.icon size={12} className="text-accent" /></div>
+              <p className="text-[11px] text-text-secondary leading-relaxed">{rule.text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Active Vote */}
+      <div className="bg-warning/[0.04] border border-warning/15 rounded-2xl p-3.5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2"><Vote size={15} className="text-warning" /><p className="text-[13px] font-bold text-text-primary">Active Vote</p></div>
+          <StatusPill status="warning">18h left</StatusPill>
+        </div>
+        <div className="bg-dark-card/30 rounded-xl p-3 mb-3">
+          <p className="text-[12px] text-text-primary font-medium">Deepak R. requests ₹300</p>
+          <p className="text-[10px] text-text-muted mt-1 leading-relaxed">Reason: Policy lapsed during fever, missed renewal. 2 disruption days uncovered.</p>
+          <div className="flex items-center gap-3 mt-2">
+            <span className="text-[10px] text-text-muted">Member since: Week 3</span>
+            <span className="text-[10px] text-success font-semibold">12/20 votes (60%)</span>
+          </div>
+        </div>
+        {!showVote ? (
+          <button onClick={() => setShowVote(true)} className="w-full py-2.5 bg-warning/10 border border-warning/25 rounded-xl text-warning text-[12px] font-semibold">Cast Your Vote</button>
+        ) : (
+          <div className="flex gap-2">
+            <button onClick={() => setShowVote(false)} className="flex-1 py-2.5 bg-success/10 border border-success/25 rounded-xl text-success text-[12px] font-semibold">✓ Approve</button>
+            <button onClick={() => setShowVote(false)} className="flex-1 py-2.5 bg-danger/10 border border-danger/25 rounded-xl text-danger text-[12px] font-semibold">✗ Deny</button>
+          </div>
+        )}
+      </div>
+
+      {/* Pool Activity */}
+      <div className="glass rounded-2xl p-3.5">
+        <SectionLabel>Pool Activity</SectionLabel>
+        <div className="space-y-2">
+          {(poolData?.motions || [
+            { action: 'Weekly contribution (x34)', amount: '+₹340', time: 'This week', type: 'in' },
+            { action: 'Priya M. draw (approved)', amount: '-₹400', time: 'Mar 8', type: 'out' },
+            { action: 'Rollover from Feb', amount: '+₹960', time: 'Mar 1', type: 'in' },
+          ]).map((tx, i) => {
+            const isMotion = tx.reason !== undefined
+            return (
+              <div key={i} className="flex items-center justify-between py-1.5 border-b border-dark-border/20 last:border-0">
+                <div>
+                  <p className="text-[11px] text-text-primary font-medium">{isMotion ? tx.reason : tx.action}</p>
+                  <p className="text-[10px] text-text-muted">{isMotion ? tx.status : tx.time}</p>
+                </div>
+                <span className={`text-[12px] font-bold ${isMotion ? (tx.status === 'approved' ? 'text-success' : 'text-warning') : (tx.type === 'in' ? 'text-success' : 'text-danger')}`}>
+                  {isMotion ? `₹${tx.requestedAmount}` : tx.amount}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
@@ -1380,6 +1732,32 @@ function ProfileTab({ dashData, onBack, workerId, loadDashboard }) {
           <h3 className="text-base font-bold text-text-primary">{worker.name || 'User'}</h3>
           <p className="text-xs text-text-secondary">{worker.platform} Partner · {zone.name}</p>
           <div className="flex items-center justify-center gap-2 mt-1"><span className="text-[12px]">{tierEmoji}</span><p className="text-[10px] text-primary font-semibold">{loyalty.tier?.name || 'Starter'} · {loyalty.points?.toLocaleString() || 0} pts</p></div>
+        </div>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-3 gap-2">
+        {[{ label: 'Policies', value: `${dashData?.policy ? (loyalty.streakWeeks || 8) : 0}`, bg: 'bg-primary/10', color: 'text-primary' }, { label: 'Claims', value: `${savings.totalClaims || 5}`, bg: 'bg-success/10', color: 'text-success' }, { label: 'Streak', value: `${loyalty.streakWeeks || 0}w`, bg: 'bg-warning/10', color: 'text-warning' }].map((s, i) => (
+          <div key={i} className="glass rounded-xl p-3 text-center"><p className={`text-[17px] font-bold ${s.color}`}>{s.value}</p><p className="text-[10px] text-text-muted mt-0.5">{s.label}</p></div>
+        ))}
+      </div>
+
+      {/* Achievements */}
+      <div className="glass rounded-2xl p-3.5">
+        <SectionLabel>Achievements</SectionLabel>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {[
+            { emoji: '\uD83D\uDEE1\uFE0F', label: `${loyalty.streakWeeks || 8} Policies`, bg: 'bg-primary/10' },
+            { emoji: '\uD83D\uDD25', label: `${loyalty.streakWeeks || 7}w Streak`, bg: 'bg-warning/10' },
+            { emoji: '\uD83D\uDCB0', label: `${savings.totalClaims || 5} Claims`, bg: 'bg-success/10' },
+            { emoji: '\uD83D\uDC65', label: `${loyalty.referralCount || 3} Referrals`, bg: 'bg-accent/10' },
+            { emoji: '\u26A1', label: `${savings.roiPercent || 556}% ROI`, bg: 'bg-danger/10' },
+          ].map((a, i) => (
+            <div key={i} className={`flex-shrink-0 w-[68px] ${a.bg} rounded-xl p-2.5 text-center`}>
+              <span className="text-lg">{a.emoji}</span>
+              <p className="text-[9px] text-text-muted mt-1 font-medium">{a.label}</p>
+            </div>
+          ))}
         </div>
       </div>
 
