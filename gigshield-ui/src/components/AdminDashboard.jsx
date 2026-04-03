@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
-import { Shield, ArrowLeft, Map, Activity, BarChart3, AlertTriangle, Sliders, Award, Users, Clock, TrendingUp, TrendingDown, IndianRupee, CloudRain, Wind, Thermometer, CheckCircle2, XCircle, MapPin, Zap, ChevronRight, ChevronDown, Bell, Search, Filter, RefreshCw, Eye, Download, Calendar, Globe, Layers, Target, PieChart, Flame, ShieldAlert, Fingerprint, Network, Radio, Wifi, Moon, Sun } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Shield, ArrowLeft, Map, Activity, BarChart3, AlertTriangle, Sliders, Award, Users, Clock, TrendingUp, TrendingDown, IndianRupee, CloudRain, Wind, Thermometer, CheckCircle2, XCircle, MapPin, Zap, ChevronRight, ChevronDown, Bell, Search, Filter, RefreshCw, Eye, Download, Calendar, Globe, Layers, Target, PieChart, Flame, ShieldAlert, Fingerprint, Network, Radio, Wifi, Moon, Sun, Loader2 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RPieChart, Pie, Cell, RadialBarChart, RadialBar, Legend } from 'recharts'
+import { api } from '../lib/api'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -65,7 +66,7 @@ const forecastData = [
   { zone: 'BTM Layout', days: [{ day: 'Mon', risk: 0.7, label: 'High' }, { day: 'Tue', risk: 0.85, label: 'High' }, { day: 'Wed', risk: 0.9, label: 'Critical' }, { day: 'Thu', risk: 0.6, label: 'Med' }, { day: 'Fri', risk: 0.5, label: 'Med' }, { day: 'Sat', risk: 0.3, label: 'Low' }, { day: 'Sun', risk: 0.35, label: 'Low' }] },
 ]
 
-const COLORS = ['#6C5CE7', '#00D2D3', '#FF6B6B', '#FDCB6E', '#00B894']
+const COLORS = ['#a45b33', '#8a6a52', '#bf5b45', '#c38a2e', '#bc8750']
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload) return null
@@ -87,14 +88,14 @@ export default function AdminDashboard({ onBack }) {
   const { isDark, toggleTheme } = useTheme()
 
   return (
-    <div className="min-h-screen bg-dark flex">
+    <div className="fixed inset-0 bg-themed flex overflow-hidden z-10" style={{ height: '100dvh' }}>
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-60' : 'w-16'} glass-strong border-r border-dark-border flex flex-col transition-all duration-300 shrink-0 sticky top-0 h-screen`}>
+      <aside className={`${sidebarOpen ? 'w-60' : 'w-16'} glass-strong border-r border-dark-border flex flex-col transition-all duration-300 shrink-0 h-full overflow-y-auto`}>
         <div className="p-4 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shrink-0">
             <Shield size={18} className="text-white" />
           </div>
-          {sidebarOpen && <span className="text-sm font-bold text-text-primary whitespace-nowrap">GigKavach Admin</span>}
+          {sidebarOpen && <span className="text-sm font-bold text-text-primary whitespace-nowrap">GigShield Admin</span>}
         </div>
         <nav className="flex-1 px-2 py-2 space-y-1">
           {sidebarItems.map(item => (
@@ -118,7 +119,7 @@ export default function AdminDashboard({ onBack }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto h-full">
         {/* Top Bar */}
         <header className="sticky top-0 z-40 glass-strong border-b border-dark-border px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -158,15 +159,44 @@ export default function AdminDashboard({ onBack }) {
   )
 }
 
+const AdminSpinner = () => (
+  <div className="flex items-center justify-center py-16">
+    <Loader2 size={28} className="text-primary animate-spin" />
+  </div>
+)
+
 // OVERVIEW PANEL
 function OverviewPanel() {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const overview = await api.adminOverview()
+        setData(overview)
+      } catch (err) {
+        console.error('Admin overview failed:', err)
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  if (loading) return <AdminSpinner />
+
+  const s = data?.stats || {}
+  const zoneDist = data?.zoneDistribution || { safe: 3, watch: 1, disrupted: 1 }
+  const wpData = data?.weeklyPayouts || weeklyPayouts
+  const zoneList = data?.activeZones || zones
+
   const stats = [
-    { label: 'Active Workers', value: '142', change: '+12%', up: true, icon: Users, color: 'primary' },
-    { label: 'Weekly Premiums', value: '₹65,000', change: '+8%', up: true, icon: IndianRupee, color: 'success' },
-    { label: 'Claims Today', value: '112', change: '+45%', up: true, icon: Zap, color: 'warning' },
-    { label: 'Total Payouts', value: '₹67,200', change: '+32%', up: true, icon: TrendingUp, color: 'accent' },
-    { label: 'Loss Ratio', value: '0.68', change: '-5%', up: false, icon: PieChart, color: 'primary' },
-    { label: 'Fraud Rate', value: '2.1%', change: '-0.3%', up: false, icon: AlertTriangle, color: 'danger' },
+    { label: 'Active Workers', value: String(s.activeWorkers ?? 0), change: '+12%', up: true, icon: Users, iconBg: 'bg-primary/10', iconText: 'text-primary' },
+    { label: 'Weekly Premiums', value: `₹${(s.weeklyPremiums ?? 0).toLocaleString()}`, change: '+8%', up: true, icon: IndianRupee, iconBg: 'bg-success/10', iconText: 'text-success' },
+    { label: 'Claims Today', value: String(s.claimsToday ?? 0), change: '', up: true, icon: Zap, iconBg: 'bg-warning/10', iconText: 'text-warning' },
+    { label: 'Total Payouts', value: `₹${(s.totalPayouts ?? 0).toLocaleString()}`, change: '', up: true, icon: TrendingUp, iconBg: 'bg-accent/10', iconText: 'text-accent' },
+    { label: 'Loss Ratio', value: String(s.lossRatio ?? 0), change: '', up: false, icon: PieChart, iconBg: 'bg-primary/10', iconText: 'text-primary' },
+    { label: 'Fraud Rate', value: `${((s.fraudRate ?? 0) * 100).toFixed(1)}%`, change: '', up: false, icon: AlertTriangle, iconBg: 'bg-danger/10', iconText: 'text-danger' },
   ]
 
   return (
@@ -176,8 +206,8 @@ function OverviewPanel() {
         {stats.map((stat, i) => (
           <div key={i} className="glass rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className={`w-8 h-8 rounded-lg bg-${stat.color}/10 flex items-center justify-center`}>
-                <stat.icon size={16} className={`text-${stat.color}`} />
+              <div className={`w-8 h-8 rounded-lg ${stat.iconBg} flex items-center justify-center`}>
+                <stat.icon size={16} className={stat.iconText} />
               </div>
               <span className={`text-xs font-medium ${stat.up ? 'text-success' : 'text-success'}`}>
                 {stat.change}
@@ -195,13 +225,13 @@ function OverviewPanel() {
         <div className="glass rounded-2xl p-5">
           <h3 className="text-sm font-bold text-text-primary mb-4">Premium Pool vs Payouts (Weekly)</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={weeklyPayouts}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(45,37,80,0.5)" />
-              <XAxis dataKey="week" tick={{ fill: '#7C72A0', fontSize: 11 }} axisLine={false} />
-              <YAxis tick={{ fill: '#7C72A0', fontSize: 11 }} axisLine={false} />
+            <BarChart data={wpData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(58,48,40,0.3)" />
+              <XAxis dataKey="week" tick={{ fill: '#9e907f', fontSize: 11 }} axisLine={false} />
+              <YAxis tick={{ fill: '#9e907f', fontSize: 11 }} axisLine={false} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="premiums" fill="#6C5CE7" radius={[6, 6, 0, 0]} name="Premiums" />
-              <Bar dataKey="payouts" fill="#00D2D3" radius={[6, 6, 0, 0]} name="Payouts" />
+              <Bar dataKey="premiums" fill="#a45b33" radius={[6, 6, 0, 0]} name="Premiums" />
+              <Bar dataKey="payouts" fill="#8a6a52" radius={[6, 6, 0, 0]} name="Payouts" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -213,11 +243,11 @@ function OverviewPanel() {
             <ResponsiveContainer width="100%" height="100%">
               <RPieChart>
                 <Pie data={[
-                  { name: 'Safe', value: 3 },
-                  { name: 'Watch', value: 1 },
-                  { name: 'Disrupted', value: 1 },
+                  { name: 'Safe', value: zoneDist.safe || 0 },
+                  { name: 'Watch', value: zoneDist.watch || 0 },
+                  { name: 'Disrupted', value: zoneDist.disrupted || 0 },
                 ]} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
-                  {[{ color: '#00B894' }, { color: '#FDCB6E' }, { color: '#FF6B6B' }].map((entry, index) => (
+                  {[{ color: '#bc8750' }, { color: '#c38a2e' }, { color: '#bf5b45' }].map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -246,7 +276,7 @@ function OverviewPanel() {
               </tr>
             </thead>
             <tbody>
-              {zones.map((zone, i) => (
+              {zoneList.map((zone, i) => (
                 <tr key={i} className="border-b border-dark-border/50 hover:bg-dark-surface/50 transition-colors">
                   <td className="py-3 px-3">
                     <p className="font-semibold text-text-primary">{zone.name}</p>
@@ -288,9 +318,22 @@ function OverviewPanel() {
 function MapPanel() {
   const mapRef = useRef(null)
   const mapInstanceRef = useRef(null)
+  const [apiZones, setApiZones] = useState(null)
 
   useEffect(() => {
-    if (mapInstanceRef.current) return // already initialized
+    api.adminZones().then(d => setApiZones(d.zones || [])).catch(() => {})
+  }, [])
+
+  const zoneData = (apiZones || zones).map(z => ({
+    name: z.name, id: z.id,
+    risk: z.riskScore ?? z.risk ?? 0, workers: z.activeWorkers ?? z.workers ?? 0,
+    status: z.status, rainfall: z.metrics?.rainfall ?? z.rainfall ?? 0,
+    aqi: z.metrics?.aqi ?? z.aqi ?? 0, temp: z.metrics?.temperature ?? z.temp ?? 0,
+    lat: z.center?.lat ?? z.lat, lng: z.center?.lng ?? z.lng
+  }))
+
+  useEffect(() => {
+    if (mapInstanceRef.current || !mapRef.current || zoneData.length === 0) return
 
     const map = L.map(mapRef.current, {
       center: [12.9352, 77.6245],
@@ -305,8 +348,8 @@ function MapPanel() {
     }).addTo(map)
 
     // Add zone markers with circles
-    zones.forEach(zone => {
-      const color = zone.status === 'safe' ? '#00B894' : zone.status === 'watch' ? '#FDCB6E' : '#FF6B6B'
+    zoneData.forEach(zone => {
+      const color = zone.status === 'safe' ? '#bc8750' : zone.status === 'watch' ? '#c38a2e' : '#bf5b45'
 
       // Zone radius circle
       L.circle([zone.lat, zone.lng], {
@@ -365,7 +408,7 @@ function MapPanel() {
         mapInstanceRef.current = null
       }
     }
-  }, [])
+  }, [apiZones]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-6">
@@ -383,7 +426,7 @@ function MapPanel() {
 
       {/* Zone Detail Cards */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {zones.map((zone, i) => (
+        {zoneData.map((zone, i) => (
           <div key={i} className="glass rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -426,6 +469,36 @@ function MapPanel() {
 // LIVE FEED PANEL
 function LiveFeedPanel() {
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [feedData, setFeedData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  const loadFeed = useCallback(async () => {
+    try {
+      const data = await api.adminLiveFeed()
+      setFeedData(data.liveFeed || [])
+    } catch { /* ignore */ }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { loadFeed() }, [loadFeed])
+
+  useEffect(() => {
+    if (!autoRefresh) return
+    const interval = setInterval(loadFeed, 15000)
+    return () => clearInterval(interval)
+  }, [autoRefresh, loadFeed])
+
+  const feed = (feedData || liveFeed).map(e => ({
+    time: e.time ? new Date(e.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : e.time,
+    zone: e.zoneId || e.zone,
+    event: e.event,
+    claims: e.claims || null,
+    payout: e.payout ? (typeof e.payout === 'number' ? `₹${e.payout.toLocaleString()}` : e.payout) : null,
+    status: e.status,
+    type: e.type,
+  }))
+
+  if (loading) return <AdminSpinner />
 
   return (
     <div className="space-y-6">
@@ -434,30 +507,35 @@ function LiveFeedPanel() {
           <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
           <p className="text-sm text-text-secondary">Real-time event stream</p>
         </div>
-        <button onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  autoRefresh ? 'bg-success/10 text-success border border-success/20' : 'bg-dark-surface text-text-muted border border-dark-border'
-                }`}>
-          <RefreshCw size={12} className={autoRefresh ? 'animate-spin' : ''} />
-          {autoRefresh ? 'Live' : 'Paused'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={loadFeed} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-dark-surface text-text-muted border border-dark-border hover:border-primary/30 transition-all">
+            <RefreshCw size={12} /> Refresh
+          </button>
+          <button onClick={() => setAutoRefresh(!autoRefresh)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    autoRefresh ? 'bg-success/10 text-success border border-success/20' : 'bg-dark-surface text-text-muted border border-dark-border'
+                  }`}>
+            <RefreshCw size={12} className={autoRefresh ? 'animate-spin' : ''} />
+            {autoRefresh ? 'Live' : 'Paused'}
+          </button>
+        </div>
       </div>
 
       <div className="space-y-3">
-        {liveFeed.map((event, i) => (
+        {feed.map((event, i) => (
           <div key={i} className="glass rounded-2xl p-4 hover:border-primary/20 transition-all">
             <div className="flex items-start gap-4">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                event.type === 'rain' ? 'bg-primary/20' :
+                event.type === 'rain' || event.type === 'rainfall' ? 'bg-primary/20' :
                 event.type === 'aqi' ? 'bg-warning/20' :
-                event.type === 'store' ? 'bg-danger/20' :
-                event.type === 'alert' ? 'bg-warning/20' :
+                event.type === 'store' || event.type === 'dark_store_closure' ? 'bg-danger/20' :
+                event.type === 'alert' || event.type === 'flash_flood' || event.type === 'flood' ? 'bg-warning/20' :
                 'bg-dark-surface'
               }`}>
-                {event.type === 'rain' ? <CloudRain size={18} className="text-primary" /> :
+                {event.type === 'rain' || event.type === 'rainfall' ? <CloudRain size={18} className="text-primary" /> :
                  event.type === 'aqi' ? <Wind size={18} className="text-warning" /> :
-                 event.type === 'store' ? <AlertTriangle size={18} className="text-danger" /> :
-                 event.type === 'alert' ? <Zap size={18} className="text-warning" /> :
+                 event.type === 'store' || event.type === 'dark_store_closure' ? <AlertTriangle size={18} className="text-danger" /> :
+                 event.type === 'alert' || event.type === 'flash_flood' || event.type === 'flood' ? <Zap size={18} className="text-warning" /> :
                  <CheckCircle2 size={18} className="text-success" />}
               </div>
               <div className="flex-1 min-w-0">
@@ -467,7 +545,7 @@ function LiveFeedPanel() {
                 </div>
                 <p className="text-xs text-text-secondary mb-2">Zone: {event.zone}</p>
                 <div className="flex items-center gap-4">
-                  {event.claims && (
+                  {event.claims > 0 && (
                     <span className="text-xs text-text-secondary">
                       <Users size={10} className="inline mr-1" />{event.claims} claims
                     </span>
@@ -495,14 +573,47 @@ function LiveFeedPanel() {
 
 // ANALYTICS PANEL
 function AnalyticsPanel() {
-  const monthlyData = [
-    { month: 'Oct', lossRatio: 0.15, payouts: 16000 },
-    { month: 'Nov', lossRatio: 0.12, payouts: 12000 },
-    { month: 'Dec', lossRatio: 0.18, payouts: 18000 },
-    { month: 'Jan', lossRatio: 0.22, payouts: 22000 },
-    { month: 'Feb', lossRatio: 0.16, payouts: 16000 },
-    { month: 'Mar', lossRatio: 0.68, payouts: 67200 },
-  ]
+  const [analyticsData, setAnalyticsData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await api.adminAnalytics()
+        setAnalyticsData(data)
+      } catch (err) {
+        console.error('Analytics load failed:', err)
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  if (loading) return <AdminSpinner />
+
+  const wpData = analyticsData?.weeklyPayouts || weeklyPayouts
+  const zoneLossRatios = analyticsData?.zoneLossRatios || []
+  const totalPayouts = zoneLossRatios.reduce((s, z) => s + z.payouts, 0) || 1
+
+  const zoneBreakdown = zoneLossRatios.length > 0
+    ? zoneLossRatios.map((z, i) => ({
+        zone: z.zoneName, payouts: z.payouts,
+        percent: Math.round((z.payouts / totalPayouts) * 100),
+        color: COLORS[i % COLORS.length]
+      }))
+    : [
+        { zone: 'BTM Layout', payouts: 46800, percent: 40, color: '#bf5b45' },
+        { zone: 'HSR Layout', payouts: 20400, percent: 30, color: '#a45b33' },
+        { zone: 'Koramangala', payouts: 18600, percent: 18, color: '#c38a2e' },
+        { zone: 'Indiranagar', payouts: 6000, percent: 8, color: '#8a6a52' },
+        { zone: 'Whitefield', payouts: 2400, percent: 4, color: '#bc8750' },
+      ]
+
+  const monthlyData = wpData.slice(0, 6).map((w, i) => ({
+    month: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'][i] || w.week,
+    lossRatio: w.premiums > 0 ? Number((w.payouts / w.premiums).toFixed(2)) : 0,
+    payouts: w.payouts,
+  }))
 
   return (
     <div className="space-y-6">
@@ -513,15 +624,15 @@ function AnalyticsPanel() {
             <AreaChart data={monthlyData}>
               <defs>
                 <linearGradient id="lossGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6C5CE7" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#6C5CE7" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#a45b33" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#a45b33" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(45,37,80,0.5)" />
-              <XAxis dataKey="month" tick={{ fill: '#7C72A0', fontSize: 11 }} axisLine={false} />
-              <YAxis tick={{ fill: '#7C72A0', fontSize: 11 }} axisLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(58,48,40,0.3)" />
+              <XAxis dataKey="month" tick={{ fill: '#9e907f', fontSize: 11 }} axisLine={false} />
+              <YAxis tick={{ fill: '#9e907f', fontSize: 11 }} axisLine={false} />
               <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="lossRatio" stroke="#6C5CE7" fill="url(#lossGrad)" strokeWidth={2} name="Loss Ratio" />
+              <Area type="monotone" dataKey="lossRatio" stroke="#a45b33" fill="url(#lossGrad)" strokeWidth={2} name="Loss Ratio" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -530,11 +641,11 @@ function AnalyticsPanel() {
           <h3 className="text-sm font-bold text-text-primary mb-4">Monthly Payouts</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(45,37,80,0.5)" />
-              <XAxis dataKey="month" tick={{ fill: '#7C72A0', fontSize: 11 }} axisLine={false} />
-              <YAxis tick={{ fill: '#7C72A0', fontSize: 11 }} axisLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(58,48,40,0.3)" />
+              <XAxis dataKey="month" tick={{ fill: '#9e907f', fontSize: 11 }} axisLine={false} />
+              <YAxis tick={{ fill: '#9e907f', fontSize: 11 }} axisLine={false} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="payouts" fill="#00D2D3" radius={[6, 6, 0, 0]} name="Payouts" />
+              <Bar dataKey="payouts" fill="#8a6a52" radius={[6, 6, 0, 0]} name="Payouts" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -544,20 +655,14 @@ function AnalyticsPanel() {
       <div className="glass rounded-2xl p-5">
         <h3 className="text-sm font-bold text-text-primary mb-4">Zone-wise Payout Breakdown (This Week)</h3>
         <div className="space-y-3">
-          {[
-            { zone: 'BTM Layout', payouts: 46800, percent: 40, color: '#FF6B6B' },
-            { zone: 'HSR Layout', payouts: 20400, percent: 30, color: '#6C5CE7' },
-            { zone: 'Koramangala', payouts: 18600, percent: 18, color: '#FDCB6E' },
-            { zone: 'Indiranagar', payouts: 6000, percent: 8, color: '#00D2D3' },
-            { zone: 'Whitefield', payouts: 2400, percent: 4, color: '#00B894' },
-          ].map((z, i) => (
+          {zoneBreakdown.map((z, i) => (
             <div key={i}>
               <div className="flex justify-between mb-1">
                 <span className="text-xs text-text-primary font-medium">{z.zone}</span>
                 <span className="text-xs text-text-secondary">₹{z.payouts.toLocaleString()} ({z.percent}%)</span>
               </div>
               <div className="h-2 rounded-full bg-dark-border overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${z.percent}%`, background: z.color }} />
+                <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(z.percent, 2)}%`, background: z.color }} />
               </div>
             </div>
           ))}
@@ -568,13 +673,13 @@ function AnalyticsPanel() {
       <div className="glass rounded-2xl p-5">
         <h3 className="text-sm font-bold text-text-primary mb-4">Premium vs Payout (8-Week Trend)</h3>
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={weeklyPayouts}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(45,37,80,0.5)" />
-            <XAxis dataKey="week" tick={{ fill: '#7C72A0', fontSize: 11 }} axisLine={false} />
-            <YAxis tick={{ fill: '#7C72A0', fontSize: 11 }} axisLine={false} />
+          <LineChart data={wpData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(58,48,40,0.3)" />
+            <XAxis dataKey="week" tick={{ fill: '#9e907f', fontSize: 11 }} axisLine={false} />
+            <YAxis tick={{ fill: '#9e907f', fontSize: 11 }} axisLine={false} />
             <Tooltip content={<CustomTooltip />} />
-            <Line type="monotone" dataKey="premiums" stroke="#6C5CE7" strokeWidth={2} dot={{ r: 4, fill: '#6C5CE7' }} name="Premiums" />
-            <Line type="monotone" dataKey="payouts" stroke="#00D2D3" strokeWidth={2} dot={{ r: 4, fill: '#00D2D3' }} name="Payouts" />
+            <Line type="monotone" dataKey="premiums" stroke="#a45b33" strokeWidth={2} dot={{ r: 4, fill: '#a45b33' }} name="Premiums" />
+            <Line type="monotone" dataKey="payouts" stroke="#8a6a52" strokeWidth={2} dot={{ r: 4, fill: '#8a6a52' }} name="Payouts" />
             <Legend formatter={(value) => <span className="text-text-secondary text-xs">{value}</span>} />
           </LineChart>
         </ResponsiveContainer>
@@ -585,26 +690,66 @@ function AnalyticsPanel() {
 
 // FRAUD PANEL
 function FraudPanel() {
+  const [cases, setCases] = useState(fraudCases)
+  const [casesLoading, setCasesLoading] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await api.adminFraudCases()
+        if (data.fraudCases) {
+          setCases(data.fraudCases.map(fc => ({
+            id: fc.id,
+            worker: fc.worker || fc.workerId,
+            zone: fc.zoneId,
+            event: fc.eventId,
+            gps: fc.validation?.gps ?? false,
+            activity: fc.validation?.activity ?? false,
+            session: fc.validation?.session ?? false,
+            duplicate: fc.validation?.duplicate ?? false,
+            score: fc.validation?.score ?? 0,
+            status: fc.status,
+          })))
+        }
+      } catch (err) {
+        console.error('Fraud cases load failed:', err)
+      }
+      setCasesLoading(false)
+    }
+    load()
+  }, [])
+
+  const handleDecision = async (caseId, decision) => {
+    try {
+      await api.adminFraudDecision(caseId, decision)
+      setCases(prev => prev.map(c => c.id === caseId ? { ...c, status: decision } : c))
+    } catch (err) {
+      alert('Decision failed: ' + err.message)
+    }
+  }
+
+  if (casesLoading) return <AdminSpinner />
+
   return (
     <div className="space-y-6">
       {/* Fraud Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Flagged Claims', value: '3', color: 'danger' },
-          { label: 'Blocked', value: '1', color: 'danger' },
-          { label: 'Under Review', value: '2', color: 'warning' },
-          { label: 'Fraud Rate', value: '2.1%', color: 'success' },
+          { label: 'Flagged Claims', value: '3', textColor: 'text-danger' },
+          { label: 'Blocked', value: '1', textColor: 'text-danger' },
+          { label: 'Under Review', value: '2', textColor: 'text-warning' },
+          { label: 'Fraud Rate', value: '2.1%', textColor: 'text-success' },
         ].map((s, i) => (
           <div key={i} className="glass rounded-2xl p-4">
             <p className="text-xs text-text-muted">{s.label}</p>
-            <p className={`text-2xl font-bold text-${s.color} mt-1`}>{s.value}</p>
+            <p className={`text-2xl font-bold ${s.textColor} mt-1`}>{s.value}</p>
           </div>
         ))}
       </div>
 
       {/* Fraud Cases */}
       <div className="space-y-4">
-        {fraudCases.map((fc, i) => (
+        {cases.map((fc, i) => (
           <div key={i} className="glass rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -651,8 +796,8 @@ function FraudPanel() {
               </div>
               {fc.status === 'review' && (
                 <div className="flex gap-2">
-                  <button className="px-3 py-1.5 rounded-lg bg-success/10 text-success text-xs font-semibold border border-success/20">Approve</button>
-                  <button className="px-3 py-1.5 rounded-lg bg-danger/10 text-danger text-xs font-semibold border border-danger/20">Block</button>
+                  <button onClick={() => handleDecision(fc.id, 'approved')} className="px-3 py-1.5 rounded-lg bg-success/10 text-success text-xs font-semibold border border-success/20">Approve</button>
+                  <button onClick={() => handleDecision(fc.id, 'blocked')} className="px-3 py-1.5 rounded-lg bg-danger/10 text-danger text-xs font-semibold border border-danger/20">Block</button>
                 </div>
               )}
             </div>
@@ -668,16 +813,30 @@ function SimulatorPanel() {
   const [rainfall, setRainfall] = useState(15)
   const [aqi, setAqi] = useState(200)
   const [activeWorkers, setActiveWorkers] = useState(100)
+  const [simResult, setSimResult] = useState(null)
 
-  const affectedWorkers = Math.round(
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const result = await api.adminSimulator({ rainfall, aqi, activeWorkers })
+        setSimResult(result)
+      } catch (err) {
+        console.error('Simulator failed:', err)
+      }
+    }
+    const timer = setTimeout(run, 300)
+    return () => clearTimeout(timer)
+  }, [rainfall, aqi, activeWorkers])
+
+  const affectedWorkers = simResult?.affectedWorkers ?? Math.round(
     activeWorkers * (
       (rainfall > 15 ? 0.4 : rainfall > 10 ? 0.15 : 0) +
       (aqi > 300 ? 0.3 : aqi > 200 ? 0.1 : 0)
     )
   )
-  const estimatedPayout = affectedWorkers * 600
-  const premiumPool = activeWorkers * 99
-  const lossRatio = premiumPool > 0 ? (estimatedPayout / premiumPool).toFixed(2) : 0
+  const estimatedPayout = simResult?.estimatedPayout ?? affectedWorkers * 600
+  const premiumPool = simResult?.premiumPool ?? activeWorkers * 99
+  const lossRatio = simResult?.lossRatio ?? (premiumPool > 0 ? (estimatedPayout / premiumPool).toFixed(2) : 0)
 
   return (
     <div className="space-y-6">
@@ -779,6 +938,31 @@ function SimulatorPanel() {
 
 // FORECAST PANEL
 function ForecastPanel() {
+  const [forecastApiData, setForecastApiData] = useState(null)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await api.adminForecast()
+        if (data.zones) {
+          setForecastApiData(data.zones.map(z => ({
+            zone: z.zoneName,
+            days: z.forecast.map(f => ({
+              day: f.day,
+              risk: f.riskScore,
+              label: f.label
+            }))
+          })))
+        }
+      } catch (err) {
+        console.error('Forecast load failed:', err)
+      }
+    }
+    load()
+  }, [])
+
+  const displayData = forecastApiData || forecastData
+
   return (
     <div className="space-y-6">
       <div className="glass rounded-2xl p-5">
@@ -786,7 +970,7 @@ function ForecastPanel() {
         <p className="text-xs text-text-muted mb-6">Based on 90-day rolling average per zone + seasonal patterns</p>
         
         <div className="space-y-6">
-          {forecastData.map((zone, i) => (
+          {displayData.map((zone, i) => (
             <div key={i} className="p-4 rounded-2xl bg-dark-surface">
               <p className="text-sm font-bold text-text-primary mb-3">{zone.zone}</p>
               <div className="grid grid-cols-7 gap-2">
@@ -836,11 +1020,34 @@ function ForecastPanel() {
 
 // LOYALTY PANEL
 function LoyaltyPanel() {
+  const [loyaltyData, setLoyaltyData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await api.adminLoyalty()
+        setLoyaltyData(data)
+      } catch (err) {
+        console.error('Loyalty load failed:', err)
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  if (loading) return <AdminSpinner />
+
+  const totals = loyaltyData?.totals || {}
+  const tierCounts = loyaltyData?.tierCounts || {}
+  const leaders = loyaltyData?.leaders || []
+  const redemptions = loyaltyData?.recentRedemptions || []
+  const tierEmojis = { Starter: '🥉', Reliable: '🥈', Veteran: '🥇', Champion: '💎' }
   const tierData = [
-    { name: 'Starter', value: 42, emoji: '🥉', color: '#7C72A0' },
-    { name: 'Reliable', value: 58, emoji: '🥈', color: '#6C5CE7' },
-    { name: 'Veteran', value: 31, emoji: '🥇', color: '#FDCB6E' },
-    { name: 'Champion', value: 11, emoji: '💎', color: '#00D2D3' },
+    { name: 'Starter', value: tierCounts.Starter ?? 0, emoji: '🥉', color: '#9e907f' },
+    { name: 'Reliable', value: tierCounts.Reliable ?? 0, emoji: '🥈', color: '#a45b33' },
+    { name: 'Veteran', value: tierCounts.Veteran ?? 0, emoji: '🥇', color: '#c38a2e' },
+    { name: 'Champion', value: tierCounts.Champion ?? 0, emoji: '💎', color: '#8a6a52' },
   ]
 
   return (
@@ -848,14 +1055,14 @@ function LoyaltyPanel() {
       {/* Loyalty Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Points Issued', value: '345,200', icon: Award, color: 'primary' },
-          { label: 'Active Earners', value: '142', icon: Users, color: 'accent' },
-          { label: 'Avg Points/Worker', value: '2,431', icon: TrendingUp, color: 'success' },
-          { label: 'Churn Risk (Low Tier)', value: '18%', icon: AlertTriangle, color: 'warning' },
+          { label: 'Total Points Issued', value: (totals.totalPointsIssued || 0).toLocaleString(), icon: Award, iconBg: 'bg-primary/10', iconText: 'text-primary' },
+          { label: 'Active Earners', value: String(totals.activeEarners || 0), icon: Users, iconBg: 'bg-accent/10', iconText: 'text-accent' },
+          { label: 'Avg Points/Worker', value: (totals.avgPointsPerWorker || 0).toLocaleString(), icon: TrendingUp, iconBg: 'bg-success/10', iconText: 'text-success' },
+          { label: 'Churn Risk (Low Tier)', value: `${tierCounts.Starter || 0} workers`, icon: AlertTriangle, iconBg: 'bg-warning/10', iconText: 'text-warning' },
         ].map((s, i) => (
           <div key={i} className="glass rounded-2xl p-4">
-            <div className={`w-8 h-8 rounded-lg bg-${s.color}/10 flex items-center justify-center mb-2`}>
-              <s.icon size={16} className={`text-${s.color}`} />
+            <div className={`w-8 h-8 rounded-lg ${s.iconBg} flex items-center justify-center mb-2`}>
+              <s.icon size={16} className={s.iconText} />
             </div>
             <p className="text-xl font-bold text-text-primary">{s.value}</p>
             <p className="text-xs text-text-muted">{s.label}</p>
@@ -890,13 +1097,16 @@ function LoyaltyPanel() {
         <div className="glass rounded-2xl p-5">
           <h3 className="text-sm font-bold text-text-primary mb-4">Top GigPoints Earners</h3>
           <div className="space-y-3">
-            {[
+            {(leaders.length > 0 ? leaders.map(w => ({
+              name: w.name, zone: w.zoneId, points: w.points,
+              tier: tierEmojis[w.tier] || '🥉', streak: w.streakWeeks
+            })) : [
               { name: 'Suresh K.', zone: 'HSR-01', points: 7820, tier: '💎', streak: 12 },
               { name: 'Priya M.', zone: 'BTM-05', points: 5400, tier: '💎', streak: 10 },
               { name: 'Ravi Kumar', zone: 'HSR-01', points: 2450, tier: '🥈', streak: 7 },
               { name: 'Arjun D.', zone: 'KOR-02', points: 1800, tier: '🥈', streak: 5 },
               { name: 'Meera R.', zone: 'IND-03', points: 980, tier: '🥉', streak: 3 },
-            ].map((w, i) => (
+            ]).map((w, i) => (
               <div key={i} className="flex items-center gap-3 p-2 rounded-xl hover:bg-dark-surface transition-colors">
                 <span className="text-sm font-bold text-text-muted w-5">{i + 1}</span>
                 <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white text-xs font-bold">
@@ -920,11 +1130,11 @@ function LoyaltyPanel() {
       <div className="glass rounded-2xl p-5">
         <h3 className="text-sm font-bold text-text-primary mb-4">Recent Redemptions</h3>
         <div className="space-y-2">
-          {[
+          {(redemptions.length > 0 ? redemptions : [
             { worker: 'Suresh K.', reward: '1 Free Week (Champion)', cost: '5,000 pts', time: 'Today' },
             { worker: 'Priya M.', reward: '₹500 Coverage Top-up', cost: '7,500 pts', time: 'Yesterday' },
             { worker: 'Group: HSR-01', reward: 'Zone Milestone ₹20 cashback', cost: '20+ enrolled', time: 'This week' },
-          ].map((r, i) => (
+          ]).map((r, i) => (
             <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-dark-surface">
               <div>
                 <p className="text-sm text-text-primary font-medium">{r.worker}</p>
@@ -951,11 +1161,11 @@ function AntiSpoofingPanel() {
   ]
 
   const validationLayers = [
-    { name: 'GPS Velocity & Trajectory', weight: '20%', checks: 'Road-snapping, jitter analysis, teleportation detection', icon: MapPin, color: '#6C5CE7', passRate: 94 },
-    { name: 'Device Integrity', weight: '25%', checks: 'Cell tower, Wi-Fi BSSID, IP geolocation cross-check', icon: Wifi, color: '#00D2D3', passRate: 97 },
-    { name: 'Behavioral Biometrics', weight: '15%', checks: 'Shift patterns, accelerometer, delivery cadence', icon: Fingerprint, color: '#FDCB6E', passRate: 91 },
-    { name: 'Network Coordination', weight: '30%', checks: 'Temporal clustering, social graph, device fingerprint clusters', icon: Network, color: '#FF6B6B', passRate: 99 },
-    { name: 'Environmental Consistency', weight: '10%', checks: 'Ambient light, barometric pressure, signal quality', icon: Radio, color: '#00B894', passRate: 88 },
+    { name: 'GPS Velocity & Trajectory', weight: '20%', checks: 'Road-snapping, jitter analysis, teleportation detection', icon: MapPin, color: '#a45b33', passRate: 94 },
+    { name: 'Device Integrity', weight: '25%', checks: 'Cell tower, Wi-Fi BSSID, IP geolocation cross-check', icon: Wifi, color: '#8a6a52', passRate: 97 },
+    { name: 'Behavioral Biometrics', weight: '15%', checks: 'Shift patterns, accelerometer, delivery cadence', icon: Fingerprint, color: '#c38a2e', passRate: 91 },
+    { name: 'Network Coordination', weight: '30%', checks: 'Temporal clustering, social graph, device fingerprint clusters', icon: Network, color: '#bf5b45', passRate: 99 },
+    { name: 'Environmental Consistency', weight: '10%', checks: 'Ambient light, barometric pressure, signal quality', icon: Radio, color: '#bc8750', passRate: 88 },
   ]
 
   return (
@@ -982,14 +1192,14 @@ function AntiSpoofingPanel() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          { label: 'Ring Detected', value: '2', color: 'danger' },
-          { label: 'Accounts Quarantined', value: '495', color: 'danger' },
-          { label: 'Individual Blocks', value: '3', color: 'warning' },
-          { label: 'False Positive Rate', value: '0.0%', color: 'success' },
-          { label: 'Detection Time', value: '<3 min', color: 'primary' },
+          { label: 'Ring Detected', value: '2', textColor: 'text-danger' },
+          { label: 'Accounts Quarantined', value: '495', textColor: 'text-danger' },
+          { label: 'Individual Blocks', value: '3', textColor: 'text-warning' },
+          { label: 'False Positive Rate', value: '0.0%', textColor: 'text-success' },
+          { label: 'Detection Time', value: '<3 min', textColor: 'text-primary' },
         ].map((s, i) => (
           <div key={i} className="glass rounded-2xl p-4 text-center">
-            <p className={`text-2xl font-bold text-${s.color}`}>{s.value}</p>
+            <p className={`text-2xl font-bold ${s.textColor}`}>{s.value}</p>
             <p className="text-xs text-text-muted mt-1">{s.label}</p>
           </div>
         ))}
@@ -1111,8 +1321,8 @@ function AntiSpoofingPanel() {
                      style={{ left: p.x, top: p.y }} />
               ))}
               <svg className="absolute inset-0 w-full h-full">
-                <line x1="25" y1="15" x2="65" y2="10" stroke="#00B894" strokeWidth="0.5" strokeOpacity="0.3" />
-                <line x1="55" y1="50" x2="90" y2="65" stroke="#00B894" strokeWidth="0.5" strokeOpacity="0.3" />
+                <line x1="25" y1="15" x2="65" y2="10" stroke="#bc8750" strokeWidth="0.5" strokeOpacity="0.3" />
+                <line x1="55" y1="50" x2="90" y2="65" stroke="#bc8750" strokeWidth="0.5" strokeOpacity="0.3" />
               </svg>
             </div>
           </div>
@@ -1137,7 +1347,7 @@ function AntiSpoofingPanel() {
                   const r1 = 50, r2 = 55
                   return <line key={i} x1={80+Math.cos(a1)*r1} y1={80+Math.sin(a1)*r1} 
                               x2={80+Math.cos(a2)*r2} y2={80+Math.sin(a2)*r2} 
-                              stroke="#FF6B6B" strokeWidth="0.5" strokeOpacity="0.4" />
+                              stroke="#bf5b45" strokeWidth="0.5" strokeOpacity="0.4" />
                 })}
               </svg>
               <div className="absolute inset-0 rounded-full border-2 border-dashed border-danger/30" 

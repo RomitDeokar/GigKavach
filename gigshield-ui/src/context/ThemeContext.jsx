@@ -6,13 +6,13 @@ export function ThemeProvider({ children }) {
   const [isDark, setIsDark] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('gigkavach-theme')
+    const saved = localStorage.getItem('gigshield-theme')
     if (saved === 'dark') setIsDark(true)
   }, [])
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
-    localStorage.setItem('gigkavach-theme', isDark ? 'dark' : 'light')
+    localStorage.setItem('gigshield-theme', isDark ? 'dark' : 'light')
   }, [isDark])
 
   return (
