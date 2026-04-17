@@ -18,7 +18,7 @@ def resolve_path(*parts):
 def encode_categorical_features(df, fit=False):
     """Encode categorical features to numeric values"""
     df_encoded = df.copy()
-    categorical_cols = df_encoded.select_dtypes(include=['object']).columns
+    categorical_cols = df_encoded.select_dtypes(include=['object', 'string']).columns
     
     for col in categorical_cols:
         if fit:
