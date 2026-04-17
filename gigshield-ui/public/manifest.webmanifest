@@ -1,29 +1,25 @@
 {
-  "name": "GigShield — AI Income Protection",
+  "name": "GigShield",
   "short_name": "GigShield",
-  "description": "AI-powered parametric income protection for Q-commerce delivery partners. Auto-detects weather disruptions and pays you in under 60 seconds.",
-  "theme_color": "#f3eee6",
-  "background_color": "#f3eee6",
+  "description": "AI-powered parametric income protection for Q-commerce delivery partners.",
+  "theme_color": "#0F0A1E",
+  "background_color": "#0F0A1E",
   "display": "standalone",
   "start_url": "/",
   "scope": "/",
   "orientation": "portrait-primary",
-  "categories": ["finance", "insurance", "productivity"],
-  "lang": "en",
   "icons": [
     {
       "src": "/icons/icon-192.svg",
       "sizes": "192x192",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
-  ],
-  "screenshots": [],
-  "prefer_related_applications": false
+  ]
 }

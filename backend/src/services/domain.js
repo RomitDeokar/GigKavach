@@ -2,6 +2,11 @@ import { store } from "../store.js";
 import { createError } from "../utils/http.js";
 import { clamp, haversineDistanceMeters, roundCurrency } from "../utils/math.js";
 import { askGigBotModel, getAqiSnapshot, getGroundSignal, getWeatherSnapshot, sendPush, sendSms, simulatePayout } from "./integrations.js";
+import Razorpay from "razorpay";
+import crypto from "crypto";
+import PDFDocument from "pdfkit";
+
+const RAZORPAY_DEMO_KEY = "rzp_test_gigshield_demo";
 
 const triggerDefinitions = [
   { key: "rainfall", label: "Heavy Rain", threshold: ">15 mm/hr", check: (zone) => zone.metrics.rainfall > 15, sustainedMinutes: 10 },
@@ -64,6 +69,18 @@ export function calculatePremium(planId, riskScore, points) {
   };
 }
 
+function toPaise(amountRupees) {
+  const paise = Math.round(Number(amountRupees) * 100);
+  if (!Number.isSafeInteger(paise) || paise <= 0) {
+    throw createError(400, "Invalid payment amount");
+  }
+  return paise;
+}
+
+function fromPaise(amountPaise) {
+  return roundCurrency(Number(amountPaise) / 100);
+}
+
 export function getZoneStatus(zone) {
   if (zone.platformSignals.darkStoreClosed || zone.platformSignals.curfew || zone.platformSignals.floodAlert || zone.metrics.rainfall > 15 || zone.metrics.aqi > 300 || zone.metrics.temperature > 43) {
     return "disrupted";
@@ -74,37 +91,9 @@ export function getZoneStatus(zone) {
 
 export function findNearestZone(lat, lng) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return store.zones[0];
-  const results = [...store.zones]
+  return [...store.zones]
     .map((zone) => ({ zone, distance: haversineDistanceMeters(lat, lng, zone.center.lat, zone.center.lng) }))
-    .sort((a, b) => a.distance - b.distance);
-  
-  const nearest = results[0];
-  // If the user is more than 50km from the nearest zone, create a virtual zone based on their location
-  if (nearest.distance > 50000) {
-    const virtualZoneId = `VZ-${Math.abs(Math.round(lat * 100))}-${Math.abs(Math.round(lng * 100))}`;
-    // Check if this virtual zone already exists
-    let existing = store.zones.find(z => z.id === virtualZoneId);
-    if (!existing) {
-      existing = {
-        id: virtualZoneId,
-        name: "Your Area",
-        city: "Your City",
-        platformSignals: { darkStoreClosed: false, curfew: false, floodAlert: false },
-        center: { lat, lng },
-        radiusMeters: 3000,
-        riskScore: 0.40,
-        metrics: { rainfall: Math.floor(Math.random() * 8), aqi: 80 + Math.floor(Math.random() * 60), temperature: 28 + Math.floor(Math.random() * 8), trafficIndex: 0.3 + Math.random() * 0.2 },
-        status: "safe",
-        activeWorkers: 15 + Math.floor(Math.random() * 20),
-        darkStore: "Nearby Dark Store",
-        rainfallHistory: [0.3, 0.35, 0.38, 0.4, 0.37, 0.33, 0.36]
-      };
-      store.zones.push(existing);
-    }
-    return existing;
-  }
-  
-  return nearest.zone;
+    .sort((a, b) => a.distance - b.distance)[0].zone;
 }
 
 export function buildPremiumForecast(zoneId, planId) {
@@ -135,13 +124,58 @@ export function evaluateFraud(workerId, eventId) {
   const event = store.disruptionEvents.find((item) => item.id === eventId);
   if (!event) throw createError(404, `Event ${eventId} not found`);
   const zone = getZone(worker.zoneId);
+  const eventZone = getZone(event.zoneId);
   const distanceMeters = haversineDistanceMeters(worker.currentLocation.lat, worker.currentLocation.lng, zone.center.lat, zone.center.lng);
-  const gps = distanceMeters <= zone.radiusMeters;
+  const radiusMultiplier = ["rainfall", "flash_flood"].includes(event.type) ? 1.25 : 1;
+  const allowedRadiusMeters = zone.radiusMeters * radiusMultiplier;
+  const gps = worker.zoneId === event.zoneId && distanceMeters <= allowedRadiusMeters;
   const activity = worker.deliveriesLast30Min >= 1;
   const session = Math.abs(Date.parse(worker.lastSeenAt) - Date.parse(event.triggeredAt)) <= 10 * 60 * 1000;
   const duplicate = !store.claims.some((claim) => claim.workerId === workerId && claim.eventId === eventId);
-  const score = Number(([gps, activity, session, duplicate].filter(Boolean).length / 4).toFixed(2));
-  return { gps, activity, session, duplicate, score, distanceMeters: Math.round(distanceMeters), autoApproved: score >= 0.75 };
+  const previousFraudFlag = store.fraudCases.some((item) => item.workerId === workerId && item.status === "blocked");
+  const tier = getTier(worker.points);
+  const trustBonus = tier.name === "Champion" && worker.streakWeeks >= 8
+    ? 0.2
+    : tier.name === "Veteran" && worker.streakWeeks >= 4
+      ? 0.15
+      : tier.name === "Reliable" && worker.streakWeeks >= 2
+        ? 0.1
+        : 0;
+
+  const velocityTrajectory = gps ? 1 : distanceMeters <= allowedRadiusMeters * 1.4 ? 0.65 : 0.15;
+  const deviceIntegrity = session ? 1 : 0.35;
+  const behavioralBiometric = activity ? 1 : worker.avgDailyHours >= 6 ? 0.55 : 0.25;
+  const networkCoordination = duplicate && !previousFraudFlag ? 1 : previousFraudFlag ? 0.2 : 0.45;
+  const environmentalConsistency = getZoneStatus(eventZone) === "disrupted" || event.sustainedMinutes >= 10 ? 1 : 0.7;
+  const weightedScore = (
+    0.2 * velocityTrajectory +
+    0.25 * deviceIntegrity +
+    0.15 * behavioralBiometric +
+    0.3 * networkCoordination +
+    0.1 * environmentalConsistency
+  );
+  const score = Number(clamp(weightedScore + trustBonus - (previousFraudFlag ? 0.2 : 0), 0, 1).toFixed(2));
+  const decision = score >= 0.75 ? "auto_approved" : score >= 0.5 ? "soft_hold" : "blocked";
+  return {
+    gps,
+    activity,
+    session,
+    duplicate,
+    score,
+    decision,
+    distanceMeters: Math.round(distanceMeters),
+    allowedRadiusMeters: Math.round(allowedRadiusMeters),
+    trustBonus,
+    layers: {
+      velocityTrajectory: Number(velocityTrajectory.toFixed(2)),
+      deviceIntegrity: Number(deviceIntegrity.toFixed(2)),
+      behavioralBiometric: Number(behavioralBiometric.toFixed(2)),
+      networkCoordination: Number(networkCoordination.toFixed(2)),
+      environmentalConsistency: Number(environmentalConsistency.toFixed(2))
+    },
+    autoApproved: decision === "auto_approved",
+    softHold: decision === "soft_hold"
+  };
 }
 
 export function workerClaims(workerId) {
@@ -243,6 +277,26 @@ export function buildWorkerDashboard(workerId) {
   };
 }
 
+async function notifyPolicyActivated(workerId, policy) {
+  try {
+    const worker = getWorker(workerId);
+    const zone = getZone(worker.zoneId);
+    const plan = getPlan(policy.planId);
+    await sendPush({
+      workerId,
+      title: "Cover is active",
+      type: "policy",
+      message: `${plan.name} is live in ${zone.name}. Certificate ${policy.certificateId}.`
+    });
+    await sendSms({
+      workerId,
+      message: `GigShield: ${plan.name} active in ${zone.name}. Cert ${policy.certificateId}. Premium Rs ${policy.finalPremium}/week.`
+    });
+  } catch (err) {
+    console.warn("[notifyPolicyActivated]", err?.message || err);
+  }
+}
+
 export function buyPolicy(workerId, payload) {
   const worker = getWorker(workerId);
   const zone = getZone(worker.zoneId);
@@ -277,39 +331,234 @@ export function buyPolicy(workerId, payload) {
     at: now.toISOString()
   });
   store.policies.unshift(policy);
+  void notifyPolicyActivated(workerId, policy);
   return { policy, pricing };
+}
+
+export async function createRazorpayOrder(workerId, payload = {}) {
+  const worker = getWorker(workerId);
+  const zone = getZone(worker.zoneId);
+  const { planId = "pro", autoRenew = true, upiId } = payload;
+  const pricing = calculatePremium(planId, zone.riskScore, worker.points);
+  const amountPaise = toPaise(pricing.finalPremium);
+  
+  let razorpayOrder;
+  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+    razorpayOrder = await razorpay.orders.create({
+      amount: amountPaise,
+      currency: "INR",
+      receipt: `rcpt_${workerId.replace(/[^a-zA-Z0-9]/g, "")}_${Date.now()}`.slice(0, 40),
+      notes: {
+        workerId,
+        planId,
+        autoRenew: String(Boolean(autoRenew))
+      }
+    });
+  } else {
+    razorpayOrder = { id: `order_mock_${Date.now()}` };
+  }
+
+  const order = {
+    id: razorpayOrder.id,
+    workerId,
+    planId,
+    amount: amountPaise,
+    amountRupees: fromPaise(amountPaise),
+    currency: "INR",
+    status: "created",
+    upiId: upiId ?? worker.upiId,
+    autoRenewRequested: Boolean(autoRenew),
+    provider: "razorpay",
+    createdAt: new Date().toISOString()
+  };
+  store.paymentOrders.unshift(order);
+  return {
+    order,
+    pricing,
+    checkout: {
+      key: process.env.RAZORPAY_KEY_ID || RAZORPAY_DEMO_KEY,
+      demoMode: !(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+      name: "GigShield",
+      description: `${pricing.plan.name} weekly premium`,
+      prefill: {
+        name: worker.name,
+        contact: worker.mobile,
+        method: "upi",
+        vpa: order.upiId
+      }
+    }
+  };
+}
+
+export async function captureRazorpayPayment(workerId, payload = {}) {
+  const {
+    orderId,
+    upiId,
+    razorpay_order_id,
+    razorpay_payment_id,
+    razorpay_signature
+  } = payload;
+  const order = store.paymentOrders.find((item) => item.id === orderId && item.workerId === workerId);
+  if (!order) throw createError(404, `Payment order ${orderId} not found`);
+  if (order.status === "paid") throw createError(409, "Payment order already completed");
+  if (razorpay_order_id && razorpay_order_id !== order.id) {
+    throw createError(400, "Razorpay order ID does not match checkout session");
+  }
+
+  if (process.env.RAZORPAY_KEY_SECRET) {
+    if (!razorpay_payment_id || !razorpay_signature) {
+      throw createError(400, "Missing Razorpay payment verification fields");
+    }
+    const body = order.id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(body.toString())
+      .digest("hex");
+    if (expectedSignature !== razorpay_signature) {
+      throw createError(400, "Invalid payment signature");
+    }
+  }
+
+  const payment = {
+    id: razorpay_payment_id || `pay_${Date.now()}`,
+    orderId: order.id,
+    workerId,
+    amount: order.amount,
+    currency: order.currency,
+    method: "upi",
+    upiId: upiId ?? order.upiId,
+    status: "captured",
+    referenceId: razorpay_payment_id || `RZP-PAY-${Date.now()}`,
+    provider: "razorpay",
+    createdAt: new Date().toISOString()
+  };
+
+  order.status = "paid";
+  order.paidAt = payment.createdAt;
+  order.upiId = payment.upiId;
+  store.paymentTransactions.unshift(payment);
+
+  const purchase = buyPolicy(workerId, {
+    planId: order.planId,
+    autoRenew: order.autoRenewRequested,
+    upiId: payment.upiId
+  });
+
+  let mandate = null;
+  if (order.autoRenewRequested) {
+    mandate = createOrUpdatePaymentMandate(workerId, {
+      upiId: payment.upiId,
+      maxAmount: Math.max(order.amount, 15000),
+      source: "checkout"
+    }).mandate;
+  }
+
+  return {
+    order,
+    payment,
+    mandate,
+    ...purchase
+  };
 }
 
 export function toggleAutoRenew(workerId, autoRenew) {
   const policy = getWorkerPolicy(workerId);
   if (!policy) throw createError(404, "No policy found for worker");
   policy.autoRenew = Boolean(autoRenew);
-  return policy;
+  const mandate = store.paymentMandates.find((item) => item.workerId === workerId && item.status !== "revoked") ?? null;
+  if (mandate) {
+    mandate.status = autoRenew ? "active" : "paused";
+    mandate.updatedAt = new Date().toISOString();
+  }
+  return { policy, mandate };
+}
+
+export function createOrUpdatePaymentMandate(workerId, payload = {}) {
+  const worker = getWorker(workerId);
+  const existingMandate = store.paymentMandates.find((item) => item.workerId === workerId && item.status !== "revoked");
+  const currentPolicy = getWorkerPolicy(workerId);
+  const maxAmount = Number(payload.maxAmount) || ((currentPolicy?.finalPremium ?? calculatePremium("pro", getZone(worker.zoneId).riskScore, worker.points).finalPremium) * 100);
+  const now = new Date().toISOString();
+
+  if (payload.upiId) {
+    worker.upiId = payload.upiId;
+  }
+
+  if (existingMandate) {
+    existingMandate.upiId = payload.upiId ?? existingMandate.upiId;
+    existingMandate.maxAmount = maxAmount;
+    existingMandate.status = "active";
+    existingMandate.updatedAt = now;
+    if (currentPolicy) currentPolicy.autoRenew = true;
+    return { mandate: existingMandate, policy: currentPolicy };
+  }
+
+  const mandate = {
+    id: `mandate_${Date.now()}`,
+    workerId,
+    upiId: worker.upiId,
+    status: "active",
+    maxAmount,
+    frequency: "weekly",
+    provider: "razorpay-test-mode",
+    source: payload.source ?? "settings",
+    createdAt: now,
+    approvedAt: now
+  };
+  store.paymentMandates.unshift(mandate);
+  if (currentPolicy) currentPolicy.autoRenew = true;
+  return { mandate, policy: currentPolicy };
+}
+
+export function getPaymentState(workerId) {
+  return {
+    activeMandate: store.paymentMandates.find((item) => item.workerId === workerId && item.status === "active") ?? null,
+    recentPayments: store.paymentTransactions.filter((item) => item.workerId === workerId).slice(0, 5),
+    recentOrders: store.paymentOrders.filter((item) => item.workerId === workerId).slice(0, 5)
+  };
+}
+
+export function normalizeIndianMobile(input) {
+  const raw = String(input ?? "").trim();
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10) return `+91${digits}`;
+  if (digits.length === 12 && digits.startsWith("91")) return `+${digits}`;
+  if (digits.length === 11 && digits.startsWith("0")) return `+91${digits.slice(1)}`;
+  if (raw.startsWith("+") && digits.length >= 10) return `+${digits}`;
+  return null;
 }
 
 export function issueOtp(mobile) {
+  const normalized = normalizeIndianMobile(mobile);
+  if (!normalized) throw createError(400, "Enter a valid 10-digit mobile number");
   const code = "1234";
-  store.otps.set(mobile, { code, issuedAt: Date.now() });
-  return { mobile, otp: code, expiresInSeconds: 300 };
+  store.otps.set(normalized, { code, issuedAt: Date.now() });
+  return { mobile: normalized, otp: code, expiresInSeconds: 300 };
 }
 
 export function verifyOtp(mobile, otp) {
-  const record = store.otps.get(mobile);
-  if (!record || record.code !== otp) throw createError(401, "Invalid OTP");
-  const worker = store.workers.find((item) => item.mobile === mobile) ?? null;
+  const normalized = normalizeIndianMobile(mobile);
+  if (!normalized) throw createError(400, "Enter a valid 10-digit mobile number");
+  const record = store.otps.get(normalized);
+  if (!record || record.code !== String(otp ?? "").trim()) throw createError(401, "Invalid OTP");
+  const worker = store.workers.find((item) => item.mobile === normalized) ?? null;
   return { verified: true, workerId: worker?.id ?? null, isNewUser: !worker };
 }
 
 export function createOrUpdateWorkerProfile({ mobile, name, platform, lat, lng, avgDailyHours, shiftPattern, upiId }) {
-  let worker = store.workers.find((item) => item.mobile === mobile);
-  const parsedLat = lat != null && lat !== '' ? Number(lat) : NaN;
-  const parsedLng = lng != null && lng !== '' ? Number(lng) : NaN;
-  const nearestZone = findNearestZone(parsedLat, parsedLng);
+  const normalized = normalizeIndianMobile(mobile);
+  if (!normalized) throw createError(400, "Enter a valid 10-digit mobile number");
+  let worker = store.workers.find((item) => item.mobile === normalized);
+  const nearestZone = findNearestZone(Number(lat), Number(lng));
   if (!worker) {
     worker = {
       id: `WRK-${String(store.workers.length + 1).padStart(3, "0")}`,
       name: name ?? "New Partner",
-      mobile,
+      mobile: normalized,
       platform: platform ?? "Zepto",
       zoneId: nearestZone.id,
       avgDailyHours: Number(avgDailyHours) || 8,
@@ -393,8 +642,7 @@ export function summariseZoneDistribution() {
 
 export function buildAdminOverview() {
   const activePolicies = store.policies.filter((item) => item.status === "active");
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const todayClaims = store.claims.filter((item) => item.triggeredAt.startsWith(todayStr) || item.triggeredAt.startsWith("2026-03-30"));
+  const todayClaims = store.claims.filter((item) => item.triggeredAt.startsWith("2026-03-30"));
   const totalPremiums = activePolicies.reduce((sum, item) => sum + item.finalPremium, 0);
   const totalPayouts = todayClaims.reduce((sum, item) => sum + item.payoutAmount, 0);
   return {
@@ -493,7 +741,7 @@ export function reviewFraudCase(caseId, decision) {
   return fraudCase;
 }
 
-export function runZoneMonitor() {
+export async function runZoneMonitor() {
   const newEvents = [];
   for (const zone of store.zones) {
     const matchingTriggers = triggerDefinitions.filter((trigger) => trigger.check(zone));
@@ -515,7 +763,7 @@ export function runZoneMonitor() {
         totalPayout: 0
       };
       store.disruptionEvents.unshift(event);
-      store.liveFeed.unshift({
+      const liveItem = {
         id: `LIVE-${store.liveFeed.length + 1}`,
         time: event.triggeredAt,
         zoneId: zone.id,
@@ -524,11 +772,41 @@ export function runZoneMonitor() {
         payout: 0,
         status: trigger.sustainedMinutes ? "monitoring" : "auto-approved",
         type: trigger.key
-      });
+      };
+      store.liveFeed.unshift(liveItem);
       if (!trigger.sustainedMinutes) {
         const workersInZone = store.workers.filter((worker) => worker.zoneId === zone.id);
         for (const worker of workersInZone) {
-          sendPush({ workerId: worker.id, message: `${trigger.label} active in ${zone.name}. Policy status is being checked.` });
+          await sendPush({
+            workerId: worker.id,
+            title: `Zone alert · ${zone.name}`,
+            type: "zone_disruption",
+            message: `${trigger.label} active in ${zone.name}. Policy status is being checked.`
+          });
+        }
+      }
+      const workersInZone = store.workers.filter((worker) => worker.zoneId === zone.id);
+      for (const worker of workersInZone) {
+        const policy = getWorkerPolicy(worker.id);
+        if (!policy || policy.status !== "active") continue;
+        try {
+          const result = await processClaimPayout(worker.id, event.id);
+          liveItem.claims += 1;
+          liveItem.payout += result.claim.payoutAmount;
+          liveItem.status = "auto-approved";
+        } catch (error) {
+          if (error.statusCode === 409) {
+            store.liveFeed.unshift({
+              id: `LIVE-${store.liveFeed.length + 1}`,
+              time: new Date().toISOString(),
+              zoneId: zone.id,
+              event: `${worker.name} claim ${error.details?.softHold ? "soft hold" : "blocked"}`,
+              claims: 1,
+              payout: 0,
+              status: error.details?.softHold ? "review" : "blocked",
+              type: "fraud"
+            });
+          }
         }
       }
       newEvents.push(event);
@@ -564,6 +842,97 @@ export function generateCertificate(workerId) {
     "- Flash Flood Alert",
     "- Local Curfew"
   ].join("\n");
+}
+
+function collectPdf(document) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    document.on("data", (chunk) => chunks.push(chunk));
+    document.on("end", () => resolve(Buffer.concat(chunks)));
+    document.on("error", reject);
+  });
+}
+
+export async function generateCertificatePdf(workerId) {
+  const worker = getWorker(workerId);
+  const policy = getWorkerPolicy(workerId);
+  if (!policy) throw createError(404, "No policy found for certificate");
+  const zone = getZone(worker.zoneId);
+  const plan = getPlan(policy.planId);
+  const tier = getTier(worker.points);
+
+  const document = new PDFDocument({ size: "A4", margin: 48, info: { Title: `GigShield Certificate ${policy.certificateId}` } });
+  const ready = collectPdf(document);
+
+  document
+    .fontSize(22)
+    .fillColor("#123")
+    .text("GigShield Policy Certificate", { align: "center" });
+
+  document
+    .moveDown(0.5)
+    .fontSize(10)
+    .fillColor("#666")
+    .text("AI-powered parametric income protection for Q-Commerce delivery partners", { align: "center" });
+
+  document.moveDown(1.5);
+  document
+    .roundedRect(48, document.y, 499, 96, 8)
+    .fillAndStroke("#f6f8fb", "#d9e2ec");
+
+  document
+    .fillColor("#123")
+    .fontSize(11)
+    .text(`Certificate ID: ${policy.certificateId}`, 68, document.y + 18)
+    .text(`Policy ID: ${policy.id}`)
+    .text(`Issued To: ${worker.name}`)
+    .text(`Mobile: ${worker.mobile}`);
+
+  document.moveDown(2.5);
+  const rows = [
+    ["Plan", plan.name],
+    ["Zone", `${zone.name}, ${zone.city}`],
+    ["Dark Store", zone.darkStore],
+    ["Coverage", `Rs ${plan.payoutPerDay}/disruption day`],
+    ["Coverage Hours", `${plan.coverageHours} hrs/day`],
+    ["Valid From", policy.startsAt],
+    ["Valid Until", policy.endsAt],
+    ["Premium Paid", `Rs ${policy.finalPremium}`],
+    ["GigPoints Tier", `${tier.name} (${tier.discountPercent}% discount)`],
+    ["Auto Renew", policy.autoRenew ? "Enabled" : "Disabled"]
+  ];
+
+  document.fontSize(14).fillColor("#123").text("Policy Details");
+  document.moveDown(0.5);
+  for (const [label, value] of rows) {
+    const y = document.y;
+    document.fontSize(10).fillColor("#667").text(label, 68, y, { width: 140 });
+    document.fontSize(10).fillColor("#123").text(value, 220, y, { width: 290 });
+    document.moveDown(0.7);
+  }
+
+  document.moveDown(1);
+  document.fontSize(14).fillColor("#123").text("Covered Triggers");
+  document.moveDown(0.5);
+  [
+    "Rainfall > 15 mm/hr sustained for 10 minutes",
+    "AQI > 300 sustained for 10 minutes",
+    "Temperature > 43 C sustained for 10 minutes",
+    "Dark store closure",
+    "Flash flood alert",
+    "Local curfew"
+  ].forEach((trigger) => {
+    document.fontSize(10).fillColor("#123").text(`- ${trigger}`, { indent: 12 });
+  });
+
+  document.moveDown(1.5);
+  document
+    .fontSize(9)
+    .fillColor("#667")
+    .text("This demo certificate is generated from the GigShield policy state and is intended for prototype/testing use.", { align: "center" });
+
+  document.end();
+  return ready;
 }
 
 export function generateClaimStatement(workerId, claimId) {
@@ -607,9 +976,31 @@ export function getNotifications(workerId) {
   return store.notifications.filter((item) => item.workerId === workerId);
 }
 
-export function sendManualNotification(workerId, channel, message) {
+export async function sendManualNotification(workerId, channel, message) {
   if (channel === "sms") return sendSms({ workerId, message });
   return sendPush({ workerId, message });
+}
+
+export function registerPushSubscription(workerId, subscription) {
+  getWorker(workerId);
+  const sub = subscription && typeof subscription === "object" ? subscription : {};
+  if (!sub.endpoint) throw createError(400, "Invalid push subscription: missing endpoint");
+  const keys = sub.keys && typeof sub.keys === "object" ? sub.keys : {};
+  store.pushSubscriptions = store.pushSubscriptions.filter(
+    (s) => !(s.workerId === workerId && s.endpoint === sub.endpoint)
+  );
+  const record = {
+    id: `PSUB-${workerId}-${Date.now()}`,
+    workerId,
+    endpoint: sub.endpoint,
+    keys: {
+      p256dh: keys.p256dh ?? "",
+      auth: keys.auth ?? ""
+    },
+    createdAt: new Date().toISOString()
+  };
+  store.pushSubscriptions.unshift(record);
+  return { ok: true, subscriptionId: record.id };
 }
 
 export function createReferral(referrerWorkerId, payload) {
@@ -693,14 +1084,34 @@ export function votePoolMotion(motionId, vote) {
   return motion;
 }
 
-export function processClaimPayout(workerId, eventId) {
+export async function processClaimPayout(workerId, eventId) {
   const worker = getWorker(workerId);
   const event = store.disruptionEvents.find((item) => item.id === eventId);
   if (!event) throw createError(404, `Event ${eventId} not found`);
   const policy = getWorkerPolicy(workerId);
   if (!policy || policy.status !== "active") throw createError(409, "Worker does not have an active policy");
   const validation = evaluateFraud(workerId, eventId);
-  if (!validation.autoApproved) throw createError(409, "Fraud checks failed", validation);
+  if (!validation.autoApproved) {
+    const fraudCase = {
+      id: `FRD-${String(store.fraudCases.length + 1).padStart(3, "0")}`,
+      workerId,
+      eventId,
+      zoneId: worker.zoneId,
+      status: validation.softHold ? "review" : "blocked",
+      reviewNotes: validation.softHold ? "Soft hold from composite fraud score." : "Auto-blocked by composite fraud score.",
+      validation
+    };
+    store.fraudCases.unshift(fraudCase);
+    if (validation.softHold) {
+      await sendPush({
+        workerId,
+        title: "Claim update",
+        type: "claim",
+        message: "Your claim is being verified. This usually takes 5-10 minutes."
+      });
+    }
+    throw createError(409, validation.softHold ? "Claim placed on soft hold" : "Fraud checks failed", validation);
+  }
   const plan = getPlan(policy.planId);
   const payment = simulatePayout({ workerId, amount: plan.payoutPerDay, reason: event.type });
   const claim = {
@@ -719,6 +1130,12 @@ export function processClaimPayout(workerId, eventId) {
   store.claims.unshift(claim);
   worker.points += 300;
   event.totalPayout += plan.payoutPerDay;
-  sendSms({ workerId, message: `Rs ${plan.payoutPerDay} credited - ${event.type} trigger, ${worker.zoneId}.` });
+  await sendSms({ workerId, message: `Rs ${plan.payoutPerDay} credited - ${event.type} trigger, ${worker.zoneId}.` });
+  await sendPush({
+    workerId,
+    title: "Payout sent",
+    type: "payout",
+    message: `Rs ${plan.payoutPerDay} credited for ${event.type} in your zone. Check SMS for details.`
+  });
   return { claim, payment };
 }

@@ -1,10 +1,8 @@
-const CACHE_NAME = "gigshield-shell-v7";
-const STATIC_ASSETS = ["/", "/offline.html", "/manifest.webmanifest", "/icons/icon-192.svg", "/icons/icon-512.svg"];
+const CACHE_NAME = "gigshield-shell-v1";
+const APP_SHELL = ["/", "/offline.html", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
   self.skipWaiting();
 });
 
@@ -17,59 +15,56 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  if (request.method !== "GET") return;
-  
-  // Don't cache API calls - network first for those
-  if (request.url.includes("/api/") || request.url.includes("/health")) {
-    event.respondWith(
-      fetch(request).catch(() => new Response(JSON.stringify({ error: "offline" }), {
-        status: 503,
-        headers: { "Content-Type": "application/json" }
-      }))
-    );
-    return;
-  }
-
-  // For static assets: network first, then cache, then offline page
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-        }
-        return response;
-      })
-      .catch(async () => {
-        const cached = await caches.match(request);
-        if (cached) return cached;
-        // For navigation requests, show offline page
-        if (request.mode === "navigate") {
-          return caches.match("/offline.html");
-        }
-        return new Response("Offline", { status: 503 });
-      })
-  );
-});
-
-// Push notification handling
 self.addEventListener("push", (event) => {
-  const data = event.data?.json() ?? { title: "GigShield", body: "You have a new notification" };
+  let payload = { title: "GigShield", body: "You have a new update." };
+  try {
+    if (event.data) {
+      const parsed = event.data.json();
+      payload = { ...payload, ...parsed };
+    }
+  } catch {
+    try {
+      const text = event.data.text();
+      if (text) payload.body = text;
+    } catch {
+      /* ignore */
+    }
+  }
   event.waitUntil(
-    self.registration.showNotification(data.title || "GigShield", {
-      body: data.body || data.message || "New update",
+    self.registration.showNotification(payload.title || "GigShield", {
+      body: payload.body || "",
       icon: "/icons/icon-192.svg",
       badge: "/icons/icon-192.svg",
-      vibrate: [200, 100, 200],
-      data: data.url ? { url: data.url } : undefined
+      tag: payload.tag || "gigshield",
+      renotify: Boolean(payload.renotify),
+      vibrate: [180, 80, 180],
+      data: payload.data || { url: "/" }
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/";
-  event.waitUntil(clients.openWindow(url));
+  const url = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if ("focus" in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        return response;
+      })
+      .catch(async () => (await caches.match(event.request)) || caches.match("/offline.html"))
+  );
 });

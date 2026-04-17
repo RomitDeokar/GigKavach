@@ -1,0 +1,2 @@
+worker_id,name,mobile,zone_id,zone_name,age,gig_type,gig_platform,monthly_income,work_hours_per_week,health_condition,health_score,location_risk_score,city_tier,years_experience,num_dependents,past_accidents,traffic_violations,vehicle_age_years,coverage_gap_days,night_shift_ratio,coverage_type,shift_pattern,member_since,upi_id,timestamp
+WRK-005,New Partner,+919999999999,HSR-01,HSR Layout,30,Zepto,Zepto,30000,48,Fair,72,7.4,1,2,0,0,0,4,0,0.25,Accident Only,Full Day,2026-04-17,partner@upi,2026-04-17T09:51:21.064Z

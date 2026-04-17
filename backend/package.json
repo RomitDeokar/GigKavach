@@ -5,11 +5,20 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "db:seed": "node scripts/seed-db.js",
+    "db:reset": "node scripts/seed-db.js --reset"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "axios": "^1.6.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "mongodb": "^6.20.0",
+    "node-cron": "^3.0.3",
+    "pdfkit": "^0.13.0",
+    "razorpay": "^2.9.6",
+    "twilio": "^4.19.0",
+    "web-push": "^3.6.6"
   }
 }

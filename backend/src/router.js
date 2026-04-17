@@ -1,4 +1,3 @@
-import { Router } from "express";
 import {
   buildAdminAnalytics,
   buildAdminOverview,
@@ -8,13 +7,18 @@ import {
   buildWorkerDashboard,
   buyPolicy,
   calculatePremium,
+  captureRazorpayPayment,
   confirmReferral,
+  createOrUpdatePaymentMandate,
+  createRazorpayOrder,
   createOrUpdateWorkerProfile,
   createPoolMotion,
   createReferral,
   evaluateFraud,
   getNotifications,
+  getPaymentState,
   generateCertificate,
+  generateCertificatePdf,
   generateClaimStatement,
   getCoverageGap,
   getTier,
@@ -27,6 +31,7 @@ import {
   listPlans,
   listReferrals,
   processClaimPayout,
+  registerPushSubscription,
   reviewFraudCase,
   runSimulator,
   runZoneMonitor,
@@ -37,267 +42,267 @@ import {
   workerClaims,
   workerHistorySummary
 } from "./services/domain.js";
+import { getDatabaseState, persistStore } from "./db.js";
+import { getWebPushPublicKey } from "./services/integrations.js";
+import mlService from "./services/mlService.js";
 import { store } from "./store.js";
+import { createError, readJson, sendBuffer, sendJson, sendText } from "./utils/http.js";
 
-const router = Router();
+function routeMatch(pathname, pattern) {
+  const pathParts = pathname.split("/").filter(Boolean);
+  const patternParts = pattern.split("/").filter(Boolean);
+  if (pathParts.length !== patternParts.length) return null;
+  const params = {};
+  for (let index = 0; index < patternParts.length; index += 1) {
+    const part = patternParts[index];
+    if (part.startsWith(":")) {
+      params[part.slice(1)] = decodeURIComponent(pathParts[index]);
+      continue;
+    }
+    if (part !== pathParts[index]) return null;
+  }
+  return params;
+}
 
-// ─── Auth ────────────────────────────────────
-router.get("/plans", (_req, res) => res.json({ plans: listPlans() }));
+function renderHomePage() {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GigShield Backend</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Arial, sans-serif;
+      }
 
-router.post("/auth/request-otp", (req, res) => {
-  try {
-    res.json(issueOtp(req.body.mobile));
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #f4f7fb 0%, #dfe9f3 100%);
+        color: #123;
+      }
 
-router.post("/auth/verify-otp", (req, res) => {
-  try {
-    res.json(verifyOtp(req.body.mobile, req.body.otp));
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
+      main {
+        width: min(680px, calc(100vw - 32px));
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: 0 20px 60px rgba(18, 35, 51, 0.12);
+      }
 
-router.post("/workers/onboarding", (req, res) => {
-  try {
-    res.json(createOrUpdateWorkerProfile(req.body));
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
+      h1 {
+        margin: 0 0 12px;
+        font-size: 2rem;
+      }
 
-// ─── Worker routes ───────────────────────────
-// Check if a worker exists (used by frontend to validate stored session)
-router.get("/workers/:workerId/exists", (req, res) => {
-  const worker = store.workers.find((item) => item.id === req.params.workerId);
-  res.json({ exists: !!worker, workerId: req.params.workerId });
-});
+      p {
+        margin: 0 0 20px;
+        line-height: 1.6;
+      }
 
-router.get("/workers/:workerId/dashboard", (req, res) => {
-  try {
-    res.json(buildWorkerDashboard(req.params.workerId));
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
+      .links {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
 
-router.get("/workers/:workerId/policy", (req, res) => {
-  try {
-    const worker = getWorker(req.params.workerId);
-    const zone = getZone(worker.zoneId);
-    const policy = getWorkerPolicy(req.params.workerId);
-    res.json({
-      policy,
-      pricingPreview: ["basic", "pro", "elite"].map((planId) => calculatePremium(planId, zone.riskScore, worker.points)),
-      forecast: buildWorkerDashboard(req.params.workerId).forecast
-    });
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
+      a {
+        text-decoration: none;
+        color: white;
+        background: #1f6feb;
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-weight: 600;
+      }
 
-router.post("/workers/:workerId/policies/purchase", (req, res) => {
-  try {
-    res.json(buyPolicy(req.params.workerId, req.body));
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
+      code {
+        background: #eef3f8;
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>GigShield Backend Is Running</h1>
+      <p>The API server is up. Use <code>/health</code> for a health check and <code>/api</code> endpoints for backend data.</p>
+      <div class="links">
+        <a href="/health">Open Health Check</a>
+        <a href="/api/plans">Open Sample API</a>
+      </div>
+    </main>
+  </body>
+</html>`;
+}
 
-router.patch("/workers/:workerId/policy/auto-renew", (req, res) => {
-  try {
-    res.json(toggleAutoRenew(req.params.workerId, req.body.autoRenew));
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
+export async function handleRequest(req, res) {
+  const url = new URL(req.url, "http://localhost");
 
-router.get("/workers/:workerId/history", (req, res) => {
-  try {
-    const workerId = req.params.workerId;
-    res.json({
+  if (req.method === "OPTIONS") {
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  const routes = [
+    ["GET", "/", async () => {
+      sendText(res, 200, renderHomePage(), "text/html; charset=utf-8");
+      return null;
+    }],
+    ["GET", "/health", async () => ({ ok: true, service: "gigshield-backend", now: new Date().toISOString(), database: getDatabaseState() })],
+    ["GET", "/api/plans", async () => ({ plans: listPlans() })],
+    ["GET", "/api/push/vapid-public-key", async () => ({ publicKey: getWebPushPublicKey() })],
+    ["POST", "/api/auth/request-otp", async () => issueOtp((await readJson(req)).mobile)],
+    ["POST", "/api/auth/verify-otp", async () => {
+      const body = await readJson(req);
+      return verifyOtp(body.mobile, body.otp);
+    }],
+    ["POST", "/api/workers/onboarding", async () => {
+      const payload = await readJson(req);
+      const result = createOrUpdateWorkerProfile(payload);
+      try {
+        await mlService.storeWorkerData(mlService.formatWorkerDataForStorage({
+          ...result.worker,
+          mobile: result.worker.mobile,
+          platform: result.worker.platform,
+          avgDailyHours: result.worker.avgDailyHours,
+          shiftPattern: result.worker.shiftPattern,
+          zoneName: result.zone.name,
+          zoneRiskScore: result.zone.riskScore,
+          age: payload.age ?? 30,
+          monthly_income: payload.monthly_income ?? 30000
+        }));
+      } catch (error) {
+        console.warn("[ml-store-worker]", error?.message || error);
+      }
+      return result;
+    }],
+    ["GET", "/api/workers/:workerId/dashboard", async ({ workerId }) => buildWorkerDashboard(workerId)],
+    ["GET", "/api/workers/:workerId/policy", async ({ workerId }) => {
+      const worker = getWorker(workerId);
+      const zone = getZone(worker.zoneId);
+      const policy = getWorkerPolicy(workerId);
+      return {
+        policy,
+        pricingPreview: ["basic", "pro", "elite"].map((planId) => calculatePremium(planId, zone.riskScore, worker.points)),
+        forecast: buildWorkerDashboard(workerId).forecast,
+        payment: getPaymentState(workerId)
+      };
+    }],
+    ["POST", "/api/workers/:workerId/policies/purchase", async ({ workerId }) => buyPolicy(workerId, await readJson(req))],
+    ["GET", "/api/workers/:workerId/payments", async ({ workerId }) => getPaymentState(workerId)],
+    ["POST", "/api/workers/:workerId/payments/checkout", async ({ workerId }) => createRazorpayOrder(workerId, await readJson(req))],
+    ["POST", "/api/workers/:workerId/payments/verify", async ({ workerId }) => captureRazorpayPayment(workerId, await readJson(req))],
+    ["POST", "/api/workers/:workerId/payments/mandate", async ({ workerId }) => createOrUpdatePaymentMandate(workerId, await readJson(req))],
+    ["PATCH", "/api/workers/:workerId/policy/auto-renew", async ({ workerId }) => toggleAutoRenew(workerId, (await readJson(req)).autoRenew)],
+    ["GET", "/api/workers/:workerId/history", async ({ workerId }) => ({
       summary: workerHistorySummary(workerId),
       claims: workerClaims(workerId),
-      zoneHistory: store.disruptionEvents.filter((i) => i.zoneId === getWorker(workerId).zoneId).slice(0, 10),
+      zoneHistory: store.disruptionEvents.filter((item) => item.zoneId === getWorker(workerId).zoneId).slice(0, 10),
       lifetimeProtection: store.lifetimeProtection[workerId] ?? []
-    });
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
+    })],
+    ["GET", "/api/workers/:workerId/points", async ({ workerId }) => {
+      const worker = getWorker(workerId);
+      return {
+        balance: worker.points,
+        tier: getTier(worker.points),
+        ledger: store.pointsLedger.filter((item) => item.workerId === workerId),
+        milestones: [
+          { points: 2500, reward: "10% waiver + priority payout" },
+          { points: 5000, reward: "1 free week every 13 weeks" },
+          { points: 7500, reward: "Rs 500 top-up" }
+        ]
+      };
+    }],
+    ["GET", "/api/workers/:workerId/profile", async ({ workerId }) => ({ worker: getWorker(workerId), zone: getZone(getWorker(workerId).zoneId) })],
+    ["GET", "/api/workers/:workerId/coverage-gap", async ({ workerId }) => ({ coverageGap: getCoverageGap(workerId) })],
+    ["GET", "/api/workers/:workerId/notifications", async ({ workerId }) => ({ notifications: getNotifications(workerId) })],
+    ["POST", "/api/workers/:workerId/notifications/send", async ({ workerId }) => {
+      const body = await readJson(req);
+      return sendManualNotification(workerId, body.channel ?? "push", body.message ?? "GigShield alert");
+    }],
+    ["POST", "/api/workers/:workerId/push/subscribe", async ({ workerId }) => registerPushSubscription(workerId, await readJson(req))],
+    ["GET", "/api/workers/:workerId/referrals", async ({ workerId }) => ({ referrals: listReferrals(workerId) })],
+    ["POST", "/api/workers/:workerId/referrals", async ({ workerId }) => createReferral(workerId, await readJson(req))],
+    ["GET", "/api/workers/:workerId/pool", async ({ workerId }) => ({ pool: getZonePool(getWorker(workerId).zoneId) })],
+    ["POST", "/api/workers/:workerId/pool/motions", async ({ workerId }) => createPoolMotion(workerId, await readJson(req))],
+    ["POST", "/api/workers/:workerId/gigbot", async ({ workerId }) => buildGigBotReply(workerId, (await readJson(req)).message ?? "")],
+    ["POST", "/api/workers/:workerId/payouts/process", async ({ workerId }) => processClaimPayout(workerId, (await readJson(req)).eventId)],
+    ["GET", "/api/workers/:workerId/certificate", async ({ workerId }) => {
+      if (url.searchParams.get("format") === "text") {
+        sendText(res, 200, generateCertificate(workerId));
+        return null;
+      }
+      const pdf = await generateCertificatePdf(workerId);
+      sendBuffer(res, 200, pdf, "application/pdf", `gigshield-certificate-${workerId}.pdf`);
+      return null;
+    }],
+    ["GET", "/api/workers/:workerId/claims/:claimId/statement", async ({ workerId, claimId }) => {
+      sendText(res, 200, generateClaimStatement(workerId, claimId));
+      return null;
+    }],
+    ["GET", "/api/admin/overview", async () => buildAdminOverview()],
+    ["GET", "/api/admin/zones", async () => ({ zones: store.zones })],
+    ["GET", "/api/admin/zones/:zoneId/signals", async ({ zoneId }) => getZoneSignals(zoneId)],
+    ["GET", "/api/admin/live-feed", async () => ({ liveFeed: store.liveFeed })],
+    ["GET", "/api/admin/analytics", async () => buildAdminAnalytics()],
+    ["GET", "/api/admin/fraud-cases", async () => ({ fraudCases: store.fraudCases.map((item) => ({ ...item, worker: getWorker(item.workerId).name })) })],
+    ["POST", "/api/admin/fraud-cases/:caseId/decision", async ({ caseId }) => reviewFraudCase(caseId, (await readJson(req)).decision)],
+    ["POST", "/api/admin/simulator", async () => runSimulator(await readJson(req))],
+    ["GET", "/api/admin/forecast", async () => ({ zones: buildForecastDashboard() })],
+    ["GET", "/api/admin/loyalty", async () => buildLoyaltyMonitor()],
+    ["GET", "/api/admin/pools", async () => ({ pools: store.zonePools })],
+    ["GET", "/api/admin/pools/:zoneId", async ({ zoneId }) => getZonePool(zoneId)],
+    ["POST", "/api/admin/pools/motions/:motionId/vote", async ({ motionId }) => votePoolMotion(motionId, (await readJson(req)).vote ?? "for")],
+    ["POST", "/api/admin/referrals/:referralId/confirm", async ({ referralId }) => confirmReferral(referralId)],
+    ["POST", "/api/system/monitor/run", async () => ({ events: await runZoneMonitor() })],
+    ["POST", "/api/system/fraud/evaluate", async () => {
+      const body = await readJson(req);
+      return evaluateFraud(body.workerId, body.eventId);
+    }],
+    ["POST", "/api/ml/fraud", async () => mlService.getPrediction('fraud', await readJson(req))],
+    ["POST", "/api/ml/price", async () => mlService.getPrediction('price', await readJson(req))],
+    ["POST", "/api/ml/risk", async () => mlService.getPrediction('risk', await readJson(req))],
+    ["POST", "/api/ml/claim", async () => mlService.getPrediction('claim', await readJson(req))],
+    ["POST", "/api/ml/batch-predict/:modelType", async ({ modelType }) => mlService.batchPredict(modelType, await readJson(req))],
+    ["POST", "/api/ml/worker-risk", async () => {
+      const body = await readJson(req);
+      return mlService.predictRisk(body);
+    }],
+    ["POST", "/api/ml/worker-price", async () => {
+      const body = await readJson(req);
+      return mlService.predictPrice(body, body.planId);
+    }],
+    ["POST", "/api/ml/fraud-check", async () => {
+      const body = await readJson(req);
+      return mlService.predictFraud(body);
+    }],
+    ["POST", "/api/ml/store-worker", async () => {
+      const body = await readJson(req);
+      const formattedData = mlService.formatWorkerDataForStorage(body);
+      return mlService.storeWorkerData(formattedData);
+    }],
+    ["GET", "/api/ml/workers", async () => mlService.getAllWorkers()],
+    ["GET", "/api/ml/workers/:workerId", async ({ workerId }) => mlService.getWorkerData(workerId)],
+    ["GET", "/api/ml/workers/:workerId/insights", async ({ workerId }) => mlService.getWorkerInsights(workerId)],
+    ["GET", "/api/ml/analytics", async () => mlService.getAnalytics()],
+    ["GET", "/api/ml/health", async () => mlService.checkHealth()]
+  ];
 
-router.get("/workers/:workerId/points", (req, res) => {
-  try {
-    const worker = getWorker(req.params.workerId);
-    res.json({
-      balance: worker.points,
-      tier: getTier(worker.points),
-      ledger: store.pointsLedger.filter((i) => i.workerId === req.params.workerId),
-      milestones: [
-        { points: 2500, reward: "10% waiver + priority payout" },
-        { points: 5000, reward: "1 free week every 13 weeks" },
-        { points: 7500, reward: "Rs 500 top-up" }
-      ]
-    });
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
+  for (const [method, pattern, handler] of routes) {
+    if (method !== req.method) continue;
+    const params = routeMatch(url.pathname, pattern);
+    if (!params) continue;
+    const result = await handler(params);
+    if (!["GET", "OPTIONS"].includes(req.method)) {
+      await persistStore();
+    }
+    if (result !== null) sendJson(res, 200, result);
+    return;
+  }
 
-router.get("/workers/:workerId/profile", (req, res) => {
-  try {
-    const worker = getWorker(req.params.workerId);
-    res.json({ worker, zone: getZone(worker.zoneId) });
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.get("/workers/:workerId/coverage-gap", (req, res) => {
-  try {
-    res.json({ coverageGap: getCoverageGap(req.params.workerId) });
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.get("/workers/:workerId/notifications", (req, res) => {
-  try {
-    res.json({ notifications: getNotifications(req.params.workerId) });
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.post("/workers/:workerId/notifications/send", (req, res) => {
-  try {
-    res.json(sendManualNotification(req.params.workerId, req.body.channel ?? "push", req.body.message ?? "GigShield alert"));
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.get("/workers/:workerId/referrals", (req, res) => {
-  try {
-    res.json({ referrals: listReferrals(req.params.workerId) });
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.post("/workers/:workerId/referrals", (req, res) => {
-  try {
-    res.json(createReferral(req.params.workerId, req.body));
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.get("/workers/:workerId/pool", (req, res) => {
-  try {
-    res.json({ pool: getZonePool(getWorker(req.params.workerId).zoneId) });
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.post("/workers/:workerId/pool/motions", (req, res) => {
-  try {
-    res.json(createPoolMotion(req.params.workerId, req.body));
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.post("/workers/:workerId/gigbot", (req, res) => {
-  try {
-    res.json(buildGigBotReply(req.params.workerId, req.body.message ?? ""));
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.post("/workers/:workerId/payouts/process", (req, res) => {
-  try {
-    res.json(processClaimPayout(req.params.workerId, req.body.eventId));
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.get("/workers/:workerId/certificate", (req, res) => {
-  try {
-    res.type("text/plain").send(generateCertificate(req.params.workerId));
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.get("/workers/:workerId/claims/:claimId/statement", (req, res) => {
-  try {
-    res.type("text/plain").send(generateClaimStatement(req.params.workerId, req.params.claimId));
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-// ─── Admin routes ────────────────────────────
-router.get("/admin/overview", (_req, res) => {
-  try { res.json(buildAdminOverview()); }
-  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.get("/admin/zones", (_req, res) => res.json({ zones: store.zones }));
-
-router.get("/admin/zones/:zoneId/signals", (req, res) => {
-  try { res.json(getZoneSignals(req.params.zoneId)); }
-  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.get("/admin/live-feed", (_req, res) => res.json({ liveFeed: store.liveFeed }));
-
-router.get("/admin/analytics", (_req, res) => {
-  try { res.json(buildAdminAnalytics()); }
-  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.get("/admin/fraud-cases", (_req, res) => {
-  try {
-    res.json({
-      fraudCases: store.fraudCases.map((i) => {
-        let workerName = i.workerId;
-        try { workerName = getWorker(i.workerId).name; } catch { /* use id */ }
-        return { ...i, worker: workerName };
-      })
-    });
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.post("/admin/fraud-cases/:caseId/decision", (req, res) => {
-  try { res.json(reviewFraudCase(req.params.caseId, req.body.decision)); }
-  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.post("/admin/simulator", (req, res) => {
-  try { res.json(runSimulator(req.body)); }
-  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.get("/admin/forecast", (_req, res) => {
-  try { res.json({ zones: buildForecastDashboard() }); }
-  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.get("/admin/loyalty", (_req, res) => {
-  try { res.json(buildLoyaltyMonitor()); }
-  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.get("/admin/pools", (_req, res) => res.json({ pools: store.zonePools }));
-
-router.get("/admin/pools/:zoneId", (req, res) => {
-  try { res.json(getZonePool(req.params.zoneId)); }
-  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.post("/admin/pools/motions/:motionId/vote", (req, res) => {
-  try { res.json(votePoolMotion(req.params.motionId, req.body.vote ?? "for")); }
-  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.post("/admin/referrals/:referralId/confirm", (req, res) => {
-  try { res.json(confirmReferral(req.params.referralId)); }
-  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-// ─── Worker profile update ──────────────────
-router.patch("/workers/:workerId/profile", (req, res) => {
-  try {
-    const worker = getWorker(req.params.workerId);
-    const { name, platform, avgDailyHours, shiftPattern, upiId } = req.body;
-    if (name) worker.name = name;
-    if (platform) worker.platform = platform;
-    if (avgDailyHours) worker.avgDailyHours = Number(avgDailyHours);
-    if (shiftPattern) worker.shiftPattern = shiftPattern;
-    if (upiId) worker.upiId = upiId;
-    res.json({ worker, zone: getZone(worker.zoneId) });
-  } catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-// ─── Worker logout ──────────────────────────
-router.post("/workers/:workerId/logout", (req, res) => {
-  res.json({ success: true });
-});
-
-// ─── System routes ───────────────────────────
-router.post("/system/monitor/run", (_req, res) => {
-  try { res.json({ events: runZoneMonitor() }); }
-  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-router.post("/system/fraud/evaluate", (req, res) => {
-  try { res.json(evaluateFraud(req.body.workerId, req.body.eventId)); }
-  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
-});
-
-export const handleApiRequest = router;
+  throw createError(404, `Route not found: ${req.method} ${url.pathname}`);
+}
