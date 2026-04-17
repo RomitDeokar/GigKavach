@@ -94,8 +94,12 @@ def encode_input_data(data, model_type):
         safe_values = [value if value in classes else classes[0] for value in series]
         df[col] = le.transform(safe_values)
 
-    numeric_df = df.apply(pd.to_numeric, errors="ignore")
-    return numeric_df
+    for col in df.columns:
+        try:
+            df[col] = pd.to_numeric(df[col])
+        except (ValueError, TypeError):
+            pass
+    return df
 
 
 def round_float(value, digits=2):

@@ -3,7 +3,7 @@ import { Shield, ArrowLeft, Home, FileText, Award, Clock, Settings, Bell, Chevro
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useTheme } from '../Context/ThemeContext'
+import { useTheme } from '../context/ThemeContext'
 import { apiFetch, getApiBaseUrl } from '../lib/api'
 import { registerGigShieldPush } from '../lib/pushNotifications'
 import { getWorkerInsights } from '../api/mlApi'
@@ -216,12 +216,6 @@ export default function WorkerApp({ onBack }) {
       cancelled = true
     }
   }, [isRegistered, workerId])
-
-  useEffect(() => {
-    if (!paymentUpiId && profile.upiId) {
-      setPaymentUpiId(profile.upiId)
-    }
-  }, [paymentUpiId, profile.upiId])
 
   useEffect(() => {
     if (!isRegistered || !workerId) return
