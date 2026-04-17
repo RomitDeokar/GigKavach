@@ -9,7 +9,7 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 /**
- * Registers the GigShield service worker, requests notification permission,
+ * Registers the GigKavach service worker, requests notification permission,
  * subscribes to Web Push, and sends the subscription to the backend.
  * Requires WEB_PUSH_PUBLIC_KEY / WEB_PUSH_PRIVATE_KEY on the server.
  */

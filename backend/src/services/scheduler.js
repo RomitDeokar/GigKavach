@@ -20,7 +20,7 @@ async function dispatchDueReminders() {
     ].filter(Boolean).join(" | ");
 
     if (reminder.channel === "sms") await sendSms({ workerId: reminder.workerId, message: enrichedMessage });
-    else await sendPush({ workerId: reminder.workerId, title: "GigShield reminder", type: "reminder", message: enrichedMessage });
+    else await sendPush({ workerId: reminder.workerId, title: "GigKavach reminder", type: "reminder", message: enrichedMessage });
 
     reminder.dispatchedAt = new Date().toISOString();
     changed = true;
@@ -33,7 +33,7 @@ async function persistSchedulerChanges(task) {
     const changed = await task();
     if (changed) await persistStore();
   } catch (error) {
-    console.error("Scheduled GigShield task failed:", error);
+    console.error("Scheduled GigKavach task failed:", error);
   }
 }
 

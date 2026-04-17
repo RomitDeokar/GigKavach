@@ -9,9 +9,9 @@ const requestedPort = Number(process.env.PORT || 4000);
 const dbState = await initializeDatabaseBackedStore();
 
 if (dbState.enabled) {
-  console.log("GigShield database persistence enabled.");
+  console.log("GigKavach database persistence enabled.");
 } else {
-  console.log("GigShield running with in-memory seed data. Set MONGODB_URI to enable MongoDB persistence.");
+  console.log("GigKavach running with in-memory seed data. Set MONGODB_URI to enable MongoDB persistence.");
 }
 
 const server = http.createServer(async (req, res) => {
@@ -42,11 +42,11 @@ server.on("error", (error) => {
     return;
   }
 
-  console.error("Failed to start GigShield backend:", error);
+  console.error("Failed to start GigKavach backend:", error);
   process.exitCode = 1;
 });
 
 server.listen(activePort, () => {
   startSchedulers();
-  console.log(`GigShield backend listening on http://localhost:${activePort}`);
+  console.log(`GigKavach backend listening on http://localhost:${activePort}`);
 });

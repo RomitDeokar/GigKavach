@@ -83,7 +83,7 @@ const plans = [
 const faqs = [
   {
     q: 'Is this normal insurance?',
-    a: 'Not quite. GigShield is parametric cover. If the agreed trigger is hit in your zone, the payout logic starts automatically.',
+    a: 'Not quite. GigKavach is parametric cover. If the agreed trigger is hit in your zone, the payout logic starts automatically.',
   },
   {
     q: 'Do I have to file a claim?',
@@ -118,7 +118,7 @@ export default function LandingPage({ onNavigate }) {
               <Shield size={18} />
             </div>
             <div className="text-left">
-              <p className="text-[0.72rem] uppercase tracking-[0.24em] text-text-muted">GigShield</p>
+              <p className="text-[0.72rem] uppercase tracking-[0.24em] text-text-muted">GigKavach</p>
               <p className="text-sm text-text-secondary">Income cover for disrupted shifts</p>
             </div>
           </button>
@@ -166,7 +166,7 @@ export default function LandingPage({ onNavigate }) {
             </h1>
 
             <p className="mt-6 max-w-2xl text-lg leading-8 text-text-secondary sm:text-[1.15rem]">
-              GigShield is a weekly safety layer for delivery partners and platform workers. It watches local disruption signals,
+              GigKavach is a weekly safety layer for delivery partners and platform workers. It watches local disruption signals,
               understands when a zone becomes unworkable, and helps turn that interruption into a cleaner payout experience.
             </p>
 

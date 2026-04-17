@@ -16,7 +16,7 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let payload = { title: "GigShield", body: "You have a new update." };
+  let payload = { title: "GigKavach", body: "You have a new update." };
   try {
     if (event.data) {
       const parsed = event.data.json();
@@ -31,7 +31,7 @@ self.addEventListener("push", (event) => {
     }
   }
   event.waitUntil(
-    self.registration.showNotification(payload.title || "GigShield", {
+    self.registration.showNotification(payload.title || "GigKavach", {
       body: payload.body || "",
       icon: "/icons/icon-192.svg",
       badge: "/icons/icon-192.svg",
