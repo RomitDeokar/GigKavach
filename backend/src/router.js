@@ -70,7 +70,7 @@ function renderHomePage() {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>GigShield Backend</title>
+    <title>GigKavach Backend</title>
     <style>
       :root {
         color-scheme: light;
@@ -128,7 +128,7 @@ function renderHomePage() {
   </head>
   <body>
     <main>
-      <h1>GigShield Backend Is Running</h1>
+      <h1>GigKavach Backend Is Running</h1>
       <p>The API server is up. Use <code>/health</code> for a health check and <code>/api</code> endpoints for backend data.</p>
       <div class="links">
         <a href="/health">Open Health Check</a>
@@ -222,7 +222,7 @@ export async function handleRequest(req, res) {
     ["GET", "/api/workers/:workerId/notifications", async ({ workerId }) => ({ notifications: getNotifications(workerId) })],
     ["POST", "/api/workers/:workerId/notifications/send", async ({ workerId }) => {
       const body = await readJson(req);
-      return sendManualNotification(workerId, body.channel ?? "push", body.message ?? "GigShield alert");
+      return sendManualNotification(workerId, body.channel ?? "push", body.message ?? "GigKavach alert");
     }],
     ["POST", "/api/workers/:workerId/push/subscribe", async ({ workerId }) => registerPushSubscription(workerId, await readJson(req))],
     ["GET", "/api/workers/:workerId/referrals", async ({ workerId }) => ({ referrals: listReferrals(workerId) })],

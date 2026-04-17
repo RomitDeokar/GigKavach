@@ -6,6 +6,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { apiFetch } from '../lib/api'
 import PricingPanel from './admin/PricingPanel'
+import MLDashboardPanel from './admin/MLDashboardPanel'
 import PriceGraph from './graphs/PriceGraph'
 import FraudGraph from './graphs/FraudGraph'
 import RiskGraph from './graphs/RiskGraph'
@@ -25,6 +26,7 @@ const sidebarItems = [
   { id: 'analytics', label: 'Analytics', icon: TrendingUp },
   { id: 'fraud', label: 'Fraud Console', icon: AlertTriangle },
   { id: 'antispoofing', label: 'Anti-Spoofing', icon: ShieldAlert },
+  { id: 'ml', label: 'ML Insights', icon: Target },
   { id: 'simulator', label: 'Risk Simulator', icon: Sliders },
   { id: 'forecast', label: '7-Day Forecast', icon: Calendar },
   { id: 'loyalty', label: 'Loyalty Monitor', icon: Award },
@@ -127,7 +129,7 @@ export default function AdminDashboard({ onBack }) {
           <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shrink-0">
             <Shield size={18} className="text-white" />
           </div>
-          {sidebarOpen && <span className="text-sm font-bold text-text-primary whitespace-nowrap">GigShield Admin</span>}
+          {sidebarOpen && <span className="text-sm font-bold text-text-primary whitespace-nowrap">GigKavach Admin</span>}
         </div>
         <nav className="flex-1 px-2 py-2 space-y-1">
           {sidebarItems.map(item => (
@@ -181,6 +183,7 @@ export default function AdminDashboard({ onBack }) {
           {activeTab === 'live' && <LiveFeedPanel />}
           {activeTab === 'analytics' && <AnalyticsPanel />}
           {activeTab === 'fraud' && <FraudPanel />}
+          {activeTab === 'ml' && <MLDashboardPanel />}
           {activeTab === 'simulator' && <PricingPanel />}
           {activeTab === 'forecast' && <ForecastPanel />}
           {activeTab === 'antispoofing' && <AntiSpoofingPanel />}
@@ -393,7 +396,21 @@ function MapPanel() {
     // Force resize after mount
     setTimeout(() => map.invalidateSize(), 100)
 
+    // Fix map rendering by invalidating size dynamically on container resize.
+    // This keeps Leaflet tiles sharp when the sidebar collapses/expands or
+    // when the user rotates their device.
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize()
+      }
+    })
+
+    if (mapRef.current) {
+      resizeObserver.observe(mapRef.current)
+    }
+
     return () => {
+      resizeObserver.disconnect()
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove()
         mapInstanceRef.current = null

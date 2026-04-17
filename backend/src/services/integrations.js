@@ -42,7 +42,7 @@ async function deliverWebPushToDevices(worker, title, body, data = {}) {
     return { attempted: false, reason: "no_device_subscriptions" };
   }
   const payload = JSON.stringify({
-    title: title || "GigShield",
+    title: title || "GigKavach",
     body,
     tag: "gigshield",
     renotify: true,
@@ -109,7 +109,7 @@ export async function sendSms({ workerId, message }) {
 
 export async function sendPush({ workerId, message, title, type = "alert" }) {
   const worker = store.workers.find((item) => item.id === workerId);
-  const displayTitle = title || "GigShield";
+  const displayTitle = title || "GigKavach";
   const notification = {
     id: nextNotificationId(),
     workerId,

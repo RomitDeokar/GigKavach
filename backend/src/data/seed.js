@@ -613,7 +613,7 @@ export const zonePools = [
 
 export const reminders = [
   { workerId: "WRK-001", channel: "push", scheduledAt: "2026-04-03T12:30:00.000Z", label: "Friday reminder", message: "Your policy expires in 2 days. Renew now before HSR risk rises next week." },
-  { workerId: "WRK-001", channel: "sms", scheduledAt: "2026-04-04T04:30:00.000Z", label: "Saturday reminder", message: "GigShield: Policy expires tomorrow. Renew now to keep your 7-week streak." },
+  { workerId: "WRK-001", channel: "sms", scheduledAt: "2026-04-04T04:30:00.000Z", label: "Saturday reminder", message: "GigKavach: Policy expires tomorrow. Renew now to keep your 7-week streak." },
   { workerId: "WRK-001", channel: "push", scheduledAt: "2026-04-05T12:30:00.000Z", label: "Sunday reminder", message: "6 hours left on your policy. Auto-renew is ON." }
 ];
 

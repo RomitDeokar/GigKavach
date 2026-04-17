@@ -55,7 +55,7 @@ const reminderSchedule = [
 const chatResponses = {
   'claim status': { en: 'Your latest claim GS-CLM-0892 was auto-approved on Mar 10 at 12:11 PM. Payout: ₹600 sent to your UPI (ravi@okicici). All 4 fraud checks passed.', hi: 'Aapka latest claim GS-CLM-0892 Mar 10 ko 12:11 PM par auto-approve hua. ₹600 aapke UPI (ravi@okicici) mein bheja gaya.' },
   'premium': { en: 'Your current Pro Shield premium is ₹108/week (base ₹99 + 9% zone risk adjustment). You get 5% Reliable tier discount, so you pay ₹103/week.', hi: 'Aapka Pro Shield premium ₹108/week hai (base ₹99 + 9% zone risk). Reliable tier discount 5% ke baad aap ₹103/week pay karte ho.' },
-  'triggers': { en: 'GigShield covers 6 triggers: Heavy Rain (>15mm/hr), Extreme Heat (>43°C), Severe AQI (>300), Flash Flood (IMD Alert), Dark Store Closure, and Local Curfew.', hi: 'GigShield 6 triggers cover karta hai: Heavy Rain (>15mm/hr), Extreme Heat (>43°C), AQI (>300), Flash Flood, Dark Store Closure, aur Curfew.' },
+  'triggers': { en: 'GigKavach covers 6 triggers: Heavy Rain (>15mm/hr), Extreme Heat (>43°C), Severe AQI (>300), Flash Flood (IMD Alert), Dark Store Closure, and Local Curfew.', hi: 'GigKavach 6 triggers cover karta hai: Heavy Rain (>15mm/hr), Extreme Heat (>43°C), AQI (>300), Flash Flood, Dark Store Closure, aur Curfew.' },
   'points': { en: 'You have 2,450 GigPoints (Reliable tier). You\'re only 50 pts away from Veteran tier (10% discount)!', hi: 'Aapke paas 2,450 GigPoints hain (Reliable tier). Veteran tier (10% discount) ke liye sirf 50 points aur chahiye!' },
   'pool': { en: 'Your zone HSR-01 has a Collective Protection Pool with 34 members. Pool balance: ₹1,240. Max draw: ₹500/month.', hi: 'Aapke zone HSR-01 ka Collective Pool mein 34 members hain. Balance: ₹1,240. Max draw: ₹500/month.' },
   'default': { en: "I can help you with: claim status, premium info, trigger details, GigPoints, or pool info. Just type your question!", hi: "Main aapki madad kar sakta hoon: claim status, premium info, trigger details, GigPoints, ya pool info." },
@@ -137,17 +137,26 @@ const StatusPill = ({ status, children }) => {
 
 
 // ─── MAIN COMPONENT ───────────────────────────────────
+function normalizeWorkerId(workerId) {
+  return String(workerId ?? '').trim().toUpperCase() || null
+}
+
 function readStoredSession() {
   if (typeof localStorage === 'undefined') {
-    return { registered: false, workerId: 'WRK-001', screen: 'login' }
+    return { registered: false, workerId: null, screen: 'login' }
   }
   const registered = localStorage.getItem('gigshield_registered') === 'true'
-  const storedId = localStorage.getItem('gigshield_worker_id')
+  const storedId = normalizeWorkerId(localStorage.getItem('gigshield_worker_id'))
   return {
-    registered,
-    workerId: storedId || 'WRK-001',
-    screen: registered ? 'app' : 'login'
+    registered: registered && !!storedId,
+    workerId: storedId,
+    screen: registered && storedId ? 'app' : 'login'
   }
+}
+
+function clearStoredSession() {
+  localStorage.removeItem('gigshield_registered')
+  localStorage.removeItem('gigshield_worker_id')
 }
 
 export default function WorkerApp({ onBack }) {
@@ -160,6 +169,9 @@ export default function WorkerApp({ onBack }) {
   const [showNotif, setShowNotif] = useState(false)
   const [autoRenew, setAutoRenew] = useState(true)
   const [showGigBot, setShowGigBot] = useState(false)
+  const [onboardPlatform, setOnboardPlatform] = useState('Zepto')
+  const [onboardHours, setOnboardHours] = useState(1)
+  const [onboardShift, setOnboardShift] = useState(2)
 
   // Registration state
   const [isRegistered, setIsRegistered] = useState(() => readStoredSession().registered)
@@ -189,6 +201,34 @@ export default function WorkerApp({ onBack }) {
   const [paymentSession, setPaymentSession] = useState(null)
   const [paymentUpiId, setPaymentUpiId] = useState('')
   const [mandateConsent, setMandateConsent] = useState(true)
+
+  // Validate stored worker ID against backend on startup.
+  // If the backend lost the worker (e.g. server restart in in-memory mode), clear
+  // the stale localStorage session and send the user back to login.
+  useEffect(() => {
+    if (!isRegistered || !workerId) return
+    let cancelled = false
+
+    const validateSession = async () => {
+      try {
+        await apiFetch(`/api/workers/${workerId}/profile`)
+      } catch (err) {
+        if (cancelled) return
+        const is404 = err?.message?.includes('404') || err?.message?.toLowerCase().includes('not found')
+        if (is404) {
+          console.warn(`[GigKavach] Worker ${workerId} not found on backend — session cleared.`)
+          clearStoredSession()
+          setIsRegistered(false)
+          setWorkerId(null)
+          setScreen('login')
+          setProfileSnapshot(null)
+        }
+      }
+    }
+
+    validateSession()
+    return () => { cancelled = true }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isRegistered || !workerId) return
@@ -223,7 +263,7 @@ export default function WorkerApp({ onBack }) {
     registerGigShieldPush(workerId)
       .then((result) => {
         if (!cancelled && result.ok) {
-          console.info('[GigShield] Device push registered for zone and policy alerts')
+          console.info('[GigKavach] Device push registered for zone and policy alerts')
         }
       })
       .catch(() => {})
@@ -231,6 +271,13 @@ export default function WorkerApp({ onBack }) {
       cancelled = true
     }
   }, [isRegistered, workerId])
+
+  // Auto-populate payment UPI ID from profile
+  useEffect(() => {
+    if (!paymentUpiId && profile.upiId) {
+      setPaymentUpiId(profile.upiId)
+    }
+  }, [paymentUpiId, profile.upiId])
 
   useEffect(() => {
     if (!isRegistered || !workerId) return
@@ -272,10 +319,9 @@ export default function WorkerApp({ onBack }) {
   }, [isRegistered, workerId])
 
   const resetAuthSession = () => {
-    localStorage.removeItem('gigshield_registered')
-    localStorage.removeItem('gigshield_worker_id')
+    clearStoredSession()
     setIsRegistered(false)
-    setWorkerId('WRK-001')
+    setWorkerId(null)
     setScreen('login')
     setAuthMode('login')
     setRegistrationStep('mobile')
@@ -284,6 +330,7 @@ export default function WorkerApp({ onBack }) {
     setError('')
     setShowOnboarding(false)
     setActiveTab('home')
+    setProfileSnapshot(null)
   }
 
   // Get user location for zone detection
@@ -338,7 +385,14 @@ export default function WorkerApp({ onBack }) {
         setRegistrationStep('profile')
         getLocation()
       } else {
-        const resolvedWorkerId = data.workerId || 'WRK-001'
+        // Use the workerId returned by the server — no hard-coded fallback
+        // otherwise a brand-new phone number would be logged in as Ravi Kumar.
+        const resolvedWorkerId = normalizeWorkerId(data.workerId)
+        if (!resolvedWorkerId) {
+          setError('Login response missing worker id. Please try again.')
+          setLoading(false)
+          return
+        }
         localStorage.setItem('gigshield_registered', 'true')
         localStorage.setItem('gigshield_worker_id', resolvedWorkerId)
         setWorkerId(resolvedWorkerId)
@@ -364,9 +418,10 @@ export default function WorkerApp({ onBack }) {
           lng: location?.lng
         })
       })
+      const resolvedWorkerId = normalizeWorkerId(data.worker.id)
       localStorage.setItem('gigshield_registered', 'true')
-      localStorage.setItem('gigshield_worker_id', data.worker.id)
-      setWorkerId(data.worker.id)
+      localStorage.setItem('gigshield_worker_id', resolvedWorkerId)
+      setWorkerId(resolvedWorkerId)
       setIsRegistered(true)
       setScreen('app')
       setShowOnboarding(true)
@@ -400,77 +455,83 @@ export default function WorkerApp({ onBack }) {
     const selectedPlanId = planIds[selectedPlan] || 'pro';
     const isDemoCheckout = paymentSession?.checkout?.demoMode || paymentSession?.checkout?.key === "rzp_test_gigshield_demo";
 
-    const options = {
-      key: paymentSession?.checkout?.key || "rzp_test_1234567890abcd",
-      amount: paymentSession?.order?.amount || 0,
-      currency: paymentSession?.order?.currency || "INR",
-      name: paymentSession?.checkout?.name || "GigShield",
-      description: paymentSession?.checkout?.description || "Premium",
-      order_id: paymentSession?.order?.id,
-      prefill: {
-        name: profile?.name || "Partner",
-        contact: profile?.mobile || mobile || "9999999999",
-        method: "upi",
-        vpa: paymentUpiId || profile?.upiId || "success@razorpay"
-      },
-      handler: async function (response) {
-        try {
-          const paymentResult = await apiFetch(`/api/workers/${workerId}/payments/verify`, {
-            method: 'POST',
-            body: JSON.stringify({
-              orderId: paymentSession?.order?.id,
-              planId: selectedPlanId,
-              autoRenew: mandateConsent,
-              upiId: paymentUpiId || profile?.upiId || paymentSession?.order?.upiId,
-              razorpay_order_id: response.razorpay_order_id || paymentSession?.order?.id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
-            })
+    const verifyPayment = async (response) => {
+      try {
+        const paymentResult = await apiFetch(`/api/workers/${workerId}/payments/verify`, {
+          method: 'POST',
+          body: JSON.stringify({
+            orderId: paymentSession?.order?.id,
+            planId: selectedPlanId,
+            autoRenew: mandateConsent,
+            upiId: paymentUpiId || profile?.upiId || paymentSession?.order?.upiId,
+            razorpay_order_id: response.razorpay_order_id || paymentSession?.order?.id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature
           })
-
-          setPaymentMandate(paymentResult.mandate ?? null)
-          setAutoRenew(Boolean(paymentResult.policy.autoRenew))
-          setPaymentSuccess({
-            amount: paymentResult.pricing.finalPremium,
-            referenceId: paymentResult.payment.referenceId,
-            upiId: paymentResult.payment.upiId,
-            policyId: paymentResult.policy.id
-          })
-          setPaymentStage('plans')
-          setPaymentSession(null)
-          setShowPurchase(false)
-          setActiveTab('policy')
-        } catch (err) {
-          setPaymentError(err.message || 'Payment verification failed.')
-        } finally {
-          setPaymentLoading(false)
-        }
-      },
-      modal: {
-        ondismiss: function () {
-          setPaymentLoading(false)
-        }
-      },
-      theme: { color: "#A45B33" }
+        })
+        setPaymentMandate(paymentResult.mandate ?? null)
+        setAutoRenew(Boolean(paymentResult.policy.autoRenew))
+        setPaymentSuccess({
+          amount: paymentResult.pricing.finalPremium,
+          referenceId: paymentResult.payment.referenceId,
+          upiId: paymentResult.payment.upiId,
+          policyId: paymentResult.policy.id
+        })
+        setPaymentStage('plans')
+        setPaymentSession(null)
+        setShowPurchase(false)
+        setActiveTab('policy')
+      } catch (err) {
+        setPaymentError(err.message || 'Payment verification failed.')
+      } finally {
+        setPaymentLoading(false)
+      }
     };
 
-    if (isDemoCheckout) {
-      setTimeout(() => {
-        options.handler({
-          razorpay_payment_id: "pay_mock_" + Date.now(),
-          razorpay_order_id: paymentSession?.order?.id,
-          razorpay_signature: "mock_signature_no_key"
-        });
-      }, 1500);
-      return;
-    }
-
+    // Always load and open Razorpay checkout for real sandbox experience
     const isLoaded = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
     if (!isLoaded) {
-      setPaymentError("Could not load Razorpay. Check your connection.");
+      setPaymentError("Could not load Razorpay. Check your internet connection.");
       setPaymentLoading(false);
       return;
     }
+
+    // Build options — use correct Razorpay public test key so modal renders
+    const rzpKey = isDemoCheckout
+      ? "rzp_test_HeE3WdCiLWB5k0"
+      : (paymentSession?.checkout?.key || "rzp_test_HeE3WdCiLWB5k0");
+
+    const options = {
+      key: rzpKey,
+      amount: paymentSession?.order?.amount || 9900,
+      currency: paymentSession?.order?.currency || "INR",
+      name: "GigKavach",
+      description: `${isDemoCheckout ? '[Demo] ' : ''}${paymentSession?.checkout?.description || 'Weekly Premium'}`,
+      // Only pass order_id for real (non-demo) orders
+      ...(isDemoCheckout ? {} : { order_id: paymentSession?.order?.id }),
+      prefill: {
+        name: profile?.name || "Partner",
+        contact: String(profile?.mobile || mobile || "9999999999").replace(/\D/g, '').slice(-10),
+        method: "upi",
+        vpa: paymentUpiId || profile?.upiId || "success@razorpay"
+      },
+      config: {
+        display: {
+          // Show all payment methods so user can choose
+          hide: [],
+          preferences: { show_default_blocks: true }
+        }
+      },
+      handler: verifyPayment,
+      modal: {
+        ondismiss: function () {
+          setPaymentLoading(false)
+        },
+        escape: true,
+        animation: true
+      },
+      theme: { color: "#A45B33" }
+    };
 
     try {
       const rzp = new window.Razorpay(options);
@@ -519,7 +580,15 @@ export default function WorkerApp({ onBack }) {
   }
 
   const handleAutoRenewToggle = async () => {
+    if (!workerId) {
+      setPaymentError('Please sign in before toggling auto-renew.')
+      return
+    }
+
     const nextValue = !autoRenew
+    const previousValue = autoRenew
+    // Optimistic update so the toggle animates immediately; we roll back on error.
+    setAutoRenew(nextValue)
     setPaymentError('')
 
     try {
@@ -527,11 +596,15 @@ export default function WorkerApp({ onBack }) {
         const response = await apiFetch(`/api/workers/${workerId}/payments/mandate`, {
           method: 'POST',
           body: JSON.stringify({
-            upiId: profile.upiId || undefined
+            upiId: profile.upiId || profile.mobile || undefined,
+            source: 'policy-tab'
           })
         })
-        setPaymentMandate(response.mandate)
+        setPaymentMandate(response.mandate ?? null)
         setAutoRenew(true)
+        if (typeof window !== 'undefined') {
+          console.info('[GigKavach] Auto-renew mandate created for', workerId)
+        }
         return
       }
 
@@ -542,7 +615,9 @@ export default function WorkerApp({ onBack }) {
       setPaymentMandate(response.mandate ?? null)
       setAutoRenew(false)
     } catch (err) {
-      setPaymentError(err.message || 'Unable to update auto-renew right now.')
+      // Roll back optimistic update.
+      setAutoRenew(previousValue)
+      setPaymentError(err.message || 'Unable to update auto-renew right now. Make sure the backend is running.')
     }
   }
 
@@ -585,7 +660,7 @@ export default function WorkerApp({ onBack }) {
                     <p className="text-text-secondary text-sm mb-8">
                       {authMode === 'signup'
                         ? 'We will send a code to verify your number, then set up your profile.'
-                        : 'Use the mobile number already registered on GigShield.'}
+                        : 'Use the mobile number already registered on GigKavach.'}
                     </p>
 
                     <div className="space-y-4">
@@ -762,7 +837,7 @@ export default function WorkerApp({ onBack }) {
                 <div className="w-20 h-20 rounded-3xl gradient-primary flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-primary/40 float">
                   <Shield size={40} className="text-white" />
                 </div>
-                <h1 className="text-3xl font-extrabold text-text-primary mb-1">GigShield</h1>
+                <h1 className="text-3xl font-extrabold text-text-primary mb-1">GigKavach</h1>
                 <p className="text-text-secondary text-sm mb-1">Sign in to open your cover</p>
                 <p className="text-text-muted text-[11px] mb-8 tracking-wide">OTP verification · same flow for new and returning partners</p>
                 <button
@@ -817,14 +892,16 @@ export default function WorkerApp({ onBack }) {
         content: (
           <div className="space-y-3">
             {[
-              { name: 'Zepto', desc: '10-min delivery', selected: true },
-              { name: 'Blinkit', desc: 'Instant grocery', selected: false },
-              { name: 'Swiggy Instamart', desc: 'Quick commerce', selected: false },
-            ].map((p, i) => (
-              <button key={i} className={`w-full p-4 rounded-2xl border text-left transition-all ${p.selected ? 'border-primary/50 bg-primary/10' : 'border-dark-border bg-dark-card'}`}>
+              { name: 'Zepto', desc: '10-min delivery' },
+              { name: 'Blinkit', desc: 'Instant grocery' },
+              { name: 'Swiggy Instamart', desc: 'Quick commerce' },
+            ].map((p, i) => {
+              const isSelected = onboardPlatform === p.name
+              return (
+              <button key={i} onClick={() => { setOnboardPlatform(p.name); setProfile(prev => ({...prev, platform: p.name})) }} className={`w-full p-4 rounded-2xl border text-left transition-all ${isSelected ? 'border-primary/50 bg-primary/10' : 'border-dark-border bg-dark-card hover:border-primary/25 hover:bg-primary/5'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${p.selected ? 'gradient-primary' : 'bg-dark-surface'}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isSelected ? 'gradient-primary' : 'bg-dark-surface'}`}>
                       <span className="text-white font-bold">{p.name[0]}</span>
                     </div>
                     <div>
@@ -832,10 +909,10 @@ export default function WorkerApp({ onBack }) {
                       <p className="text-[11px] text-text-muted mt-0.5">{p.desc}</p>
                     </div>
                   </div>
-                  {p.selected && <CheckCircle2 size={20} className="text-primary" />}
+                  {isSelected && <CheckCircle2 size={20} className="text-primary" />}
                 </div>
               </button>
-            ))}
+            )})}
           </div>
         )
       },
@@ -874,7 +951,7 @@ export default function WorkerApp({ onBack }) {
               <label className="text-xs text-text-muted mb-1.5 block">Daily Working Hours</label>
               <div className="flex gap-2">
                 {['4-6 hrs', '6-10 hrs', '10-14 hrs'].map((h, i) => (
-                  <button key={i} className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all ${i === 1 ? 'gradient-primary text-white' : 'bg-dark-card border border-dark-border text-text-secondary'}`}>
+                  <button key={i} onClick={() => { setOnboardHours(i); setProfile(prev => ({...prev, avgDailyHours: [5, 8, 12][i]})) }} className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all ${onboardHours === i ? 'gradient-primary text-white' : 'bg-dark-card border border-dark-border text-text-secondary hover:border-primary/25'}`}>
                     {h}
                   </button>
                 ))}
@@ -884,7 +961,7 @@ export default function WorkerApp({ onBack }) {
               <label className="text-xs text-text-muted mb-1.5 block">Shift Pattern</label>
               <div className="flex gap-2">
                 {['Morning', 'Afternoon', 'Full Day'].map((s, i) => (
-                  <button key={i} className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all ${i === 2 ? 'gradient-primary text-white' : 'bg-dark-card border border-dark-border text-text-secondary'}`}>
+                  <button key={i} onClick={() => { setOnboardShift(i); setProfile(prev => ({...prev, shiftPattern: s})) }} className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all ${onboardShift === i ? 'gradient-primary text-white' : 'bg-dark-card border border-dark-border text-text-secondary hover:border-primary/25'}`}>
                     {s}
                   </button>
                 ))}
@@ -1180,8 +1257,8 @@ export default function WorkerApp({ onBack }) {
 
   const renderTab = () => {
     switch (activeTab) {
-      case 'home': return <HomeTab setShowNotif={setShowNotif} showNotif={showNotif} setShowPurchase={setShowPurchase} setActiveTab={setActiveTab} onToggleAutoRenew={handleAutoRenewToggle} setShowGigBot={setShowGigBot} workerId={workerId} />
-      case 'policy': return <PolicyTab autoRenew={autoRenew} onToggleAutoRenew={handleAutoRenewToggle} paymentMandate={paymentMandate} paymentSuccess={paymentSuccess} paymentError={paymentError} workerId={workerId} />
+      case 'home': return <HomeTab setShowNotif={setShowNotif} showNotif={showNotif} setShowPurchase={setShowPurchase} setActiveTab={setActiveTab} onToggleAutoRenew={handleAutoRenewToggle} setShowGigBot={setShowGigBot} workerId={workerId} profileData={profileSnapshot} />
+      case 'policy': return <PolicyTab autoRenew={autoRenew} onToggleAutoRenew={handleAutoRenewToggle} paymentMandate={paymentMandate} paymentSuccess={paymentSuccess} paymentError={paymentError} workerId={workerId} profileData={profileSnapshot} />
       case 'points': return <PointsTab workerId={workerId} />
       case 'history': return <HistoryTab />
       case 'profile': return <ProfileTab onBack={onBack} onLogout={resetAuthSession} setActiveTab={setActiveTab} workerId={workerId} onEnableDevicePush={() => registerGigShieldPush(workerId)} profileData={profileSnapshot} loading={profileLoading} />
@@ -1361,7 +1438,7 @@ function GigBotPanel({ onClose, workerId }) {
 
 
 // ─── HOME TAB (Enhanced) ─────────────────────────────
-function HomeTab({ setShowNotif, showNotif, setShowPurchase, setActiveTab, onToggleAutoRenew, setShowGigBot }) {
+function HomeTab({ setShowNotif, showNotif, setShowPurchase, setActiveTab, onToggleAutoRenew, setShowGigBot, profileData }) {
   const { isDark, toggleTheme } = useTheme()
   const mapRef = useRef(null)
   const mapInstanceRef = useRef(null)
@@ -1377,12 +1454,20 @@ function HomeTab({ setShowNotif, showNotif, setShowPurchase, setActiveTab, onTog
     return () => { map.remove(); mapInstanceRef.current = null; }
   }, []);
 
+  const workerName = profileData?.profile?.name || profileData?.profile?.worker?.name || 'Partner'
+  const greeting = (() => {
+    const h = new Date().getHours()
+    if (h < 12) return 'Good morning'
+    if (h < 17) return 'Good afternoon'
+    return 'Good evening'
+  })()
+
   return (
     <div className="space-y-3.5 mt-2">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-text-secondary text-sm">Good afternoon,</p>
-          <h2 className="text-xl font-bold text-text-primary">Ravi Kumar</h2>
+          <p className="text-text-secondary text-sm">{greeting},</p>
+          <h2 className="text-xl font-bold text-text-primary">{workerName}</h2>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={toggleTheme} className="relative w-9 h-9 rounded-xl bg-dark-card border border-dark-border flex items-center justify-center">
@@ -1696,13 +1781,13 @@ function HomeTab({ setShowNotif, showNotif, setShowPurchase, setActiveTab, onTog
         <SectionLabel>Earnings Impact</SectionLabel>
         <div className="flex items-center justify-between mb-2">
           <div>
-            <p className="text-[10px] text-text-muted">Without GigShield</p>
+            <p className="text-[10px] text-text-muted">Without GigKavach</p>
             <p className="text-base font-bold text-danger">-₹4,800</p>
             <p className="text-[9px] text-text-muted">Lost to disruptions</p>
           </div>
           <div className="w-px h-10 bg-dark-border" />
           <div className="text-right">
-            <p className="text-[10px] text-text-muted">With GigShield</p>
+            <p className="text-[10px] text-text-muted">With GigKavach</p>
             <p className="text-base font-bold text-success">+₹1,968</p>
             <p className="text-[9px] text-text-muted">Net protected</p>
           </div>
@@ -1718,7 +1803,8 @@ function HomeTab({ setShowNotif, showNotif, setShowPurchase, setActiveTab, onTog
 
 
 // ─── POLICY TAB (Enhanced) ───────────────────────────
-function PolicyTab({ autoRenew, onToggleAutoRenew, paymentMandate, paymentSuccess, paymentError, workerId }) {
+function PolicyTab({ autoRenew, onToggleAutoRenew, paymentMandate, paymentSuccess, paymentError, workerId, profileData }) {
+  const policyHolder = profileData?.profile?.name || profileData?.profile?.worker?.name || 'Partner'
   return (
     <div className="space-y-3.5 mt-2">
       <h2 className="text-lg font-bold text-text-primary">My Policy</h2>
@@ -1760,7 +1846,7 @@ function PolicyTab({ autoRenew, onToggleAutoRenew, paymentMandate, paymentSucces
           <div className="space-y-2">
             {[
               ['Policy ID', 'GS-2026-HSR-00342'],
-              ['Holder', 'Ravi Kumar'],
+              ['Holder', policyHolder],
               ['Zone', 'HSR Layout, Bangalore'],
               ['Plan', 'Pro Shield'],
               ['Coverage', '₹600/disruption day'],
@@ -1922,20 +2008,37 @@ function PolicyTab({ autoRenew, onToggleAutoRenew, paymentMandate, paymentSucces
       </div>
 
       {/* Auto-Renew */}
-      <div className="glass rounded-2xl p-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <RefreshCw size={16} className="text-primary" />
-          <div>
-            <p className="text-sm font-semibold text-text-primary">Auto-Renew</p>
-            <p className="text-[10px] text-text-secondary">
-              {paymentMandate?.status === 'active' ? `UPI mandate active · ${paymentMandate.upiId}` : 'UPI mandate paused'}
-            </p>
+      <div className="glass rounded-2xl p-3.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <RefreshCw size={16} className="text-primary" />
+            <div>
+              <p className="text-sm font-semibold text-text-primary">Auto-Renew</p>
+              <p className="text-[10px] text-text-secondary">
+                {paymentMandate?.status === 'active'
+                  ? `UPI mandate active · ${paymentMandate.upiId}`
+                  : autoRenew
+                    ? 'Mandate pending — tap to retry'
+                    : 'UPI mandate paused'}
+              </p>
+            </div>
           </div>
+          <button
+            onClick={onToggleAutoRenew}
+            aria-label={autoRenew ? 'Disable auto-renew' : 'Enable auto-renew'}
+            role="switch"
+            aria-checked={autoRenew}
+            className={`w-11 h-6 rounded-full transition-all relative cursor-pointer ${autoRenew ? 'bg-primary' : 'bg-dark-border'}`}
+          >
+            <div
+              className={`rounded-full bg-white absolute top-[3px] transition-all ${autoRenew ? 'right-[3px]' : 'left-[3px]'}`}
+              style={{ width: 18, height: 18 }}
+            />
+          </button>
         </div>
-        <button onClick={onToggleAutoRenew}
-                className={`w-11 h-6 rounded-full transition-all relative ${autoRenew ? 'bg-primary' : 'bg-dark-border'}`}>
-          <div className={`w-4.5 h-4.5 rounded-full bg-white absolute top-[3px] transition-all ${autoRenew ? 'right-[3px]' : 'left-[3px]'}`} style={{ width: 18, height: 18 }} />
-        </button>
+        {paymentError && (
+          <p className="mt-2 text-[10px] text-danger">{paymentError}</p>
+        )}
       </div>
 
       {/* Latest Claim */}
@@ -2110,7 +2213,7 @@ function PointsTab({ workerId }) {
             <p className="text-[9px] text-text-muted">Zone Goal</p>
           </div>
         </div>
-        <button onClick={async () => { try { await apiFetch(`/api/workers/${workerId}/referrals`, { method: 'POST', body: JSON.stringify({ referredName: 'New Partner', referredMobile: '0000000000' }) }); if (navigator.share) { await navigator.share({ title: 'GigShield Referral', text: 'Join GigShield! Use my referral to get ₹50 off your first week.', url: window.location.origin }); } else { await navigator.clipboard.writeText(`Join GigShield! ${window.location.origin}`); alert('Referral link copied to clipboard!'); } } catch { alert('Referral link copied!'); } }} className="w-full py-2 bg-accent/10 border border-accent/30 rounded-xl text-accent text-xs font-semibold">
+        <button onClick={async () => { try { await apiFetch(`/api/workers/${workerId}/referrals`, { method: 'POST', body: JSON.stringify({ referredName: 'New Partner', referredMobile: '0000000000' }) }); if (navigator.share) { await navigator.share({ title: 'GigKavach Referral', text: 'Join GigKavach! Use my referral to get ₹50 off your first week.', url: window.location.origin }); } else { await navigator.clipboard.writeText(`Join GigKavach! ${window.location.origin}`); alert('Referral link copied to clipboard!'); } } catch { alert('Referral link copied!'); } }} className="w-full py-2 bg-accent/10 border border-accent/30 rounded-xl text-accent text-xs font-semibold">
           Share Referral Link
         </button>
       </div>

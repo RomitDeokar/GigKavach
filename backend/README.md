@@ -1,6 +1,6 @@
-# GigShield Backend
+# GigKavach Backend
 
-Backend scaffold for the GigShield demo described in the root README.
+Backend scaffold for the GigKavach demo described in the root README.
 
 ## What it includes
 

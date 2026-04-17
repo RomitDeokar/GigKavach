@@ -21,9 +21,18 @@ export function listPlans() {
   return store.planCatalog;
 }
 
+// Normalize worker IDs so lookups are case-insensitive and whitespace-tolerant.
+// Worker IDs are stored uppercased (e.g. "WRK-001"); some paths used to read
+// them from localStorage without normalizing which caused "Worker X not found"
+// errors when a lowercased id was passed back in.
+export function normalizeWorkerId(workerId) {
+  return String(workerId ?? "").trim().toUpperCase();
+}
+
 export function getWorker(workerId) {
-  const worker = store.workers.find((item) => item.id === workerId);
-  if (!worker) throw createError(404, `Worker ${workerId} not found`);
+  const normalizedId = normalizeWorkerId(workerId);
+  const worker = store.workers.find((item) => item.id === normalizedId);
+  if (!worker) throw createError(404, `Worker ${normalizedId} not found`);
   return worker;
 }
 
@@ -40,8 +49,9 @@ export function getPlan(planId) {
 }
 
 export function getWorkerPolicy(workerId) {
-  return store.policies.find((item) => item.workerId === workerId && item.status === "active")
-    ?? store.policies.find((item) => item.workerId === workerId)
+  const normalizedId = normalizeWorkerId(workerId);
+  return store.policies.find((item) => item.workerId === normalizedId && item.status === "active")
+    ?? store.policies.find((item) => item.workerId === normalizedId)
     ?? null;
 }
 
@@ -290,7 +300,7 @@ async function notifyPolicyActivated(workerId, policy) {
     });
     await sendSms({
       workerId,
-      message: `GigShield: ${plan.name} active in ${zone.name}. Cert ${policy.certificateId}. Premium Rs ${policy.finalPremium}/week.`
+      message: `GigKavach: ${plan.name} active in ${zone.name}. Cert ${policy.certificateId}. Premium Rs ${policy.finalPremium}/week.`
     });
   } catch (err) {
     console.warn("[notifyPolicyActivated]", err?.message || err);
@@ -382,7 +392,7 @@ export async function createRazorpayOrder(workerId, payload = {}) {
     checkout: {
       key: process.env.RAZORPAY_KEY_ID || RAZORPAY_DEMO_KEY,
       demoMode: !(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
-      name: "GigShield",
+      name: "GigKavach",
       description: `${pricing.plan.name} weekly premium`,
       prefill: {
         name: worker.name,
@@ -515,10 +525,11 @@ export function createOrUpdatePaymentMandate(workerId, payload = {}) {
 }
 
 export function getPaymentState(workerId) {
+  const normalizedId = normalizeWorkerId(workerId);
   return {
-    activeMandate: store.paymentMandates.find((item) => item.workerId === workerId && item.status === "active") ?? null,
-    recentPayments: store.paymentTransactions.filter((item) => item.workerId === workerId).slice(0, 5),
-    recentOrders: store.paymentOrders.filter((item) => item.workerId === workerId).slice(0, 5)
+    activeMandate: store.paymentMandates.find((item) => item.workerId === normalizedId && item.status === "active") ?? null,
+    recentPayments: store.paymentTransactions.filter((item) => item.workerId === normalizedId).slice(0, 5),
+    recentOrders: store.paymentOrders.filter((item) => item.workerId === normalizedId).slice(0, 5)
   };
 }
 
@@ -626,8 +637,8 @@ export function buildGigBotReply(workerId, message) {
       : `You have ${worker.points} GigPoints and are currently in the ${getTier(worker.points).name} tier.`;
   } else {
     reply = isHindi
-      ? "GigShield heavy rain, AQI, extreme heat, flash flood, dark store closure aur curfew cover karta hai. Main claim status, renewals, payouts aur points mein help kar sakta hoon."
-      : "GigShield covers heavy rain, severe AQI, extreme heat, flash flood alerts, dark store closure, and curfew disruptions. I can help with claims, renewals, payouts, and points.";
+      ? "GigKavach heavy rain, AQI, extreme heat, flash flood, dark store closure aur curfew cover karta hai. Main claim status, renewals, payouts aur points mein help kar sakta hoon."
+      : "GigKavach covers heavy rain, severe AQI, extreme heat, flash flood alerts, dark store closure, and curfew disruptions. I can help with claims, renewals, payouts, and points.";
   }
 
   return { reply, suggestedActions: ["View Policy", "Check Claim Status", "Open Points Wallet"], modelTrace };
@@ -861,13 +872,13 @@ export async function generateCertificatePdf(workerId) {
   const plan = getPlan(policy.planId);
   const tier = getTier(worker.points);
 
-  const document = new PDFDocument({ size: "A4", margin: 48, info: { Title: `GigShield Certificate ${policy.certificateId}` } });
+  const document = new PDFDocument({ size: "A4", margin: 48, info: { Title: `GigKavach Certificate ${policy.certificateId}` } });
   const ready = collectPdf(document);
 
   document
     .fontSize(22)
     .fillColor("#123")
-    .text("GigShield Policy Certificate", { align: "center" });
+    .text("GigKavach Policy Certificate", { align: "center" });
 
   document
     .moveDown(0.5)
@@ -929,7 +940,7 @@ export async function generateCertificatePdf(workerId) {
   document
     .fontSize(9)
     .fillColor("#667")
-    .text("This demo certificate is generated from the GigShield policy state and is intended for prototype/testing use.", { align: "center" });
+    .text("This demo certificate is generated from the GigKavach policy state and is intended for prototype/testing use.", { align: "center" });
 
   document.end();
   return ready;
