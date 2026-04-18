@@ -4,7 +4,7 @@
 
 > "If your zone goes down, your income doesn't."
 
-**Live Demo:** [GigKavach-UI](https://gig-kavach.vercel.app/) — React PWA, deployable on Vercel/Netlify/Render
+**Live Demo:** [GigKavach-UI]() — React PWA, deployable on Vercel/Netlify/Render
 
 ---
 
